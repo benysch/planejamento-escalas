@@ -30,10 +30,19 @@ export type EventoTipo =
   | "ferias_funcionario"
   | "outro";
 
+export type TipoEvento = {
+  id: string;
+  slug: string;
+  label: string;
+  cor_hex: string;
+  sistema: boolean;
+  ordem: number;
+};
+
 export type Evento = {
   id: string;
   titulo: string;
-  tipo: EventoTipo;
+  tipo: string;
   data_inicio: string;
   data_fim: string;
   dia_todo: boolean;
@@ -119,7 +128,7 @@ export function getEventoCor(evento: EventoComPessoas): string {
   const func = evento.pessoas.find((p) => p.tipo === "funcionario");
   if (func) return func.cor_hex;
   if (evento.cor_hex) return evento.cor_hex;
-  return EVENTO_TIPO_COR[evento.tipo] ?? "#6366f1";
+  return EVENTO_TIPO_COR[evento.tipo as EventoTipo] ?? "#6366f1";
 }
 
 export const MESES = [

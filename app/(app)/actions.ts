@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabase } from "@/lib/supabase/server";
-import type { EventoTipo, PessoaCargo, PessoaTipo } from "@/lib/types";
+import type { PessoaCargo, PessoaTipo } from "@/lib/types";
 
 // ─── Pessoas ────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export async function deletePessoa(id: string) {
 
 export async function createEvento(data: {
   titulo: string;
-  tipo: EventoTipo;
+  tipo: string;
   data_inicio: string;
   data_fim: string;
   dia_todo: boolean;
@@ -86,7 +86,7 @@ export async function updateEvento(
   id: string,
   data: {
     titulo?: string;
-    tipo?: EventoTipo;
+    tipo?: string;
     data_inicio?: string;
     data_fim?: string;
     dia_todo?: boolean;
@@ -121,6 +121,61 @@ export async function updateEvento(
 export async function deleteEvento(id: string) {
   const sb = getSupabase();
   const { error } = await sb.from("pe_eventos").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
+// ─── Tipos de Evento ────────────────────────────────────────────────────────
+
+function slugify(label: string): string {
+  return label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+export async function createTipoEvento(data: { label: string; cor_hex: string }) {
+  const sb = getSupabase();
+  const slug = slugify(data.label);
+  const { data: last } = await sb
+    .from("pe_evento_tipos")
+    .select("ordem")
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .single();
+  const ordem = (last?.ordem ?? 0) + 1;
+  const { error } = await sb
+    .from("pe_evento_tipos")
+    .insert({ slug, label: data.label, cor_hex: data.cor_hex, sistema: false, ordem });
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
+export async function updateTipoEvento(
+  id: string,
+  data: { label?: string; cor_hex?: string },
+) {
+  const sb = getSupabase();
+  const update: Record<string, string> = {};
+  if (data.label !== undefined) {
+    update.label = data.label;
+    update.slug = slugify(data.label);
+  }
+  if (data.cor_hex !== undefined) update.cor_hex = data.cor_hex;
+  const { error } = await sb.from("pe_evento_tipos").update(update).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
+export async function deleteTipoEvento(id: string) {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("pe_evento_tipos")
+    .delete()
+    .eq("id", id)
+    .eq("sistema", false);
   if (error) throw new Error(error.message);
   revalidatePath("/", "layout");
 }

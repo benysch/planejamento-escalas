@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation";
 
 import { CalendarioMensal } from "@/components/calendario-mensal";
 import { EventoModal } from "@/components/evento-modal";
-import type { EventoComPessoas, Pessoa } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 type Props = {
   eventos: EventoComPessoas[];
   pessoas: Pessoa[];
+  tipos: TipoEvento[];
   ano: number;
   mes: number;
 };
 
-export function CalendarioCliente({ eventos, pessoas, ano, mes }: Props) {
+export function CalendarioCliente({ eventos, pessoas, tipos, ano, mes }: Props) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
   const [eventoSel, setEventoSel] = useState<EventoComPessoas | null>(null);
@@ -52,6 +53,7 @@ export function CalendarioCliente({ eventos, pessoas, ano, mes }: Props) {
         evento={eventoSel}
         defaultDate={defaultDate}
         pessoas={pessoas}
+        tipos={tipos}
       />
     </>
   );

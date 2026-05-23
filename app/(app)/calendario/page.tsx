@@ -1,6 +1,6 @@
 import { CalendarioCliente } from "./calendario-cliente";
 import { getSupabase } from "@/lib/supabase/server";
-import type { EventoComPessoas, Pessoa } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 function ajustarAno(dateStr: string, ano: number): string {
   return `${ano}${dateStr.slice(4)}`;
@@ -12,7 +12,7 @@ async function getData(ano: number, mes: number) {
   const ultimoDia = new Date(ano, mes, 0);
   const ultimoDiaStr = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia.getDate()).padStart(2, "0")}`;
 
-  const [{ data: eventos }, { data: recorrentes }, { data: pessoas }] =
+  const [{ data: eventos }, { data: recorrentes }, { data: pessoas }, { data: tipos }] =
     await Promise.all([
       sb
         .from("pe_eventos")
@@ -27,6 +27,7 @@ async function getData(ano: number, mes: number) {
         .eq("recorrente_anual", true)
         .order("data_inicio"),
       sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
+      sb.from("pe_evento_tipos").select("*").order("ordem"),
     ]);
 
   const pessoaMap = new Map<string, Pessoa>(
@@ -62,7 +63,7 @@ async function getData(ano: number, mes: number) {
     ...recorrentesAjustados,
   ].map((ev) => enrich(ev as Record<string, unknown>));
 
-  return { eventos: eventosEnriquecidos, pessoas: pessoas ?? [] };
+  return { eventos: eventosEnriquecidos, pessoas: pessoas ?? [], tipos: (tipos ?? []) as TipoEvento[] };
 }
 
 export default async function CalendarioPage({
@@ -75,7 +76,7 @@ export default async function CalendarioPage({
   const ano = parseInt(sp.ano ?? String(hoje.getFullYear()));
   const mes = parseInt(sp.mes ?? String(hoje.getMonth() + 1));
 
-  const { eventos, pessoas } = await getData(ano, mes);
+  const { eventos, pessoas, tipos } = await getData(ano, mes);
 
   return (
     <div className="space-y-4">
@@ -88,6 +89,7 @@ export default async function CalendarioPage({
       <CalendarioCliente
         eventos={eventos}
         pessoas={pessoas}
+        tipos={tipos}
         ano={ano}
         mes={mes}
       />

@@ -9,8 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EVENTO_TIPO_LABEL, MESES } from "@/lib/types";
-import type { EventoComPessoas, Pessoa } from "@/lib/types";
+import { MESES } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 async function getDashboardData() {
   const sb = getSupabase();
@@ -21,7 +21,7 @@ async function getDashboardData() {
     .toISOString()
     .split("T")[0];
 
-  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }] =
+  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }, { data: tipos }] =
     await Promise.all([
       sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
       sb
@@ -37,6 +37,7 @@ async function getDashboardData() {
         .lte("data_inicio", em14dias)
         .order("data_inicio")
         .limit(10),
+      sb.from("pe_evento_tipos").select("*").order("ordem"),
     ]);
 
   const pessoaMap = new Map<string, Pessoa>(
@@ -88,6 +89,7 @@ async function getDashboardData() {
     conflitos,
     today,
     anoAtual,
+    tipos: (tipos ?? []) as TipoEvento[],
   };
 }
 
@@ -96,7 +98,10 @@ function formatDate(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
-function EventoItem({ evento }: { evento: EventoComPessoas }) {
+function EventoItem({ evento, tipos }: { evento: EventoComPessoas; tipos: TipoEvento[] }) {
+  function tipoLabel(slug: string) {
+    return tipos.find((t) => t.slug === slug)?.label ?? slug;
+  }
   const isSingleDay = evento.data_inicio === evento.data_fim;
   return (
     <div className="flex items-start gap-3 py-2">
@@ -121,14 +126,14 @@ function EventoItem({ evento }: { evento: EventoComPessoas }) {
         </p>
       </div>
       <Badge variant="secondary" className="shrink-0 text-xs">
-        {EVENTO_TIPO_LABEL[evento.tipo]}
+        {tipoLabel(evento.tipo)}
       </Badge>
     </div>
   );
 }
 
 export default async function DashboardPage() {
-  const { funcionarios, eventosHoje, proximos, ausentes, conflitos, today } =
+  const { funcionarios, eventosHoje, proximos, ausentes, conflitos, today, tipos } =
     await getDashboardData();
 
   const [y, m, d] = today.split("-");
@@ -210,7 +215,7 @@ export default async function DashboardPage() {
             ) : (
               <div className="divide-y">
                 {eventosHoje.map((e) => (
-                  <EventoItem key={e.id} evento={e} />
+                  <EventoItem key={e.id} evento={e} tipos={tipos} />
                 ))}
               </div>
             )}
@@ -233,7 +238,7 @@ export default async function DashboardPage() {
             ) : (
               <div className="divide-y">
                 {proximos.map((e) => (
-                  <EventoItem key={e.id} evento={e} />
+                  <EventoItem key={e.id} evento={e} tipos={tipos} />
                 ))}
               </div>
             )}

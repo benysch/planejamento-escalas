@@ -1,11 +1,6 @@
 import { getSupabase } from "@/lib/supabase/server";
-import {
-  EVENTO_TIPO_COR,
-  EVENTO_TIPO_LABEL,
-  MESES,
-  getEventoCor,
-} from "@/lib/types";
-import type { EventoComPessoas, Pessoa } from "@/lib/types";
+import { MESES, getEventoCor } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 function ajustarAno(dateStr: string, ano: number): string {
   return `${ano}${dateStr.slice(4)}`;
@@ -13,7 +8,7 @@ function ajustarAno(dateStr: string, ano: number): string {
 
 async function getData(ano: number) {
   const sb = getSupabase();
-  const [{ data: eventos }, { data: recorrentes }, { data: pessoas }] =
+  const [{ data: eventos }, { data: recorrentes }, { data: pessoas }, { data: tipos }] =
     await Promise.all([
       sb
         .from("pe_eventos")
@@ -28,6 +23,7 @@ async function getData(ano: number) {
         .eq("recorrente_anual", true)
         .order("data_inicio"),
       sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
+      sb.from("pe_evento_tipos").select("*").order("ordem"),
     ]);
 
   const pessoaMap = new Map<string, Pessoa>(
@@ -63,7 +59,7 @@ async function getData(ano: number) {
     ...recorrentesAjustados,
   ].map((ev) => enrich(ev as Record<string, unknown>));
 
-  return eventosEnriquecidos;
+  return { eventos: eventosEnriquecidos, tipos: (tipos ?? []) as TipoEvento[] };
 }
 
 function miniCalendario(ano: number, mes: number, eventos: EventoComPessoas[]) {
@@ -144,7 +140,7 @@ export default async function AnualPage({
 }) {
   const sp = await searchParams;
   const ano = parseInt(sp.ano ?? String(new Date().getFullYear()));
-  const eventos = await getData(ano);
+  const { eventos, tipos } = await getData(ano);
 
   const viagensFamilia = eventos.filter((e) => e.tipo === "viagem_familia");
   const viagensTrabalho = eventos.filter((e) => e.tipo === "viagem_trabalho");
@@ -248,13 +244,13 @@ export default async function AnualPage({
           <div>
             <h3 className="mb-2 text-sm font-semibold">Legenda</h3>
             <ul className="space-y-1">
-              {Object.entries(EVENTO_TIPO_COR).map(([tipo, cor]) => (
-                <li key={tipo} className="flex items-center gap-2 text-xs">
+              {tipos.map((t) => (
+                <li key={t.id} className="flex items-center gap-2 text-xs">
                   <div
                     className="size-2.5 rounded-full"
-                    style={{ backgroundColor: cor }}
+                    style={{ backgroundColor: t.cor_hex }}
                   />
-                  {EVENTO_TIPO_LABEL[tipo as keyof typeof EVENTO_TIPO_LABEL]}
+                  {t.label}
                 </li>
               ))}
             </ul>

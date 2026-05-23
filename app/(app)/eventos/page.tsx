@@ -1,17 +1,17 @@
 import { getSupabase } from "@/lib/supabase/server";
-import { EVENTO_TIPO_COR, EVENTO_TIPO_LABEL } from "@/lib/types";
-import type { EventoComPessoas, Pessoa } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 import { EventosCliente } from "./eventos-cliente";
 
 async function getData() {
   const sb = getSupabase();
-  const [{ data: eventos }, { data: pessoas }] = await Promise.all([
+  const [{ data: eventos }, { data: pessoas }, { data: tipos }] = await Promise.all([
     sb
       .from("pe_eventos")
       .select("*, pe_evento_pessoas(pessoa_id)")
       .order("data_inicio", { ascending: false })
       .limit(200),
     sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
+    sb.from("pe_evento_tipos").select("*").order("ordem"),
   ]);
 
   const pessoaMap = new Map<string, Pessoa>(
@@ -28,11 +28,11 @@ async function getData() {
     };
   });
 
-  return { eventos: eventosEnriquecidos, pessoas: pessoas ?? [] };
+  return { eventos: eventosEnriquecidos, pessoas: pessoas ?? [], tipos: (tipos ?? []) as TipoEvento[] };
 }
 
 export default async function EventosPage() {
-  const { eventos, pessoas } = await getData();
+  const { eventos, pessoas, tipos } = await getData();
 
   return (
     <div className="space-y-4">
@@ -42,7 +42,7 @@ export default async function EventosPage() {
           Todos os eventos cadastrados.
         </p>
       </div>
-      <EventosCliente eventos={eventos} pessoas={pessoas} />
+      <EventosCliente eventos={eventos} pessoas={pessoas} tipos={tipos} />
     </div>
   );
 }

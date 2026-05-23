@@ -6,22 +6,27 @@ import { Plus } from "lucide-react";
 import { EventoModal } from "@/components/evento-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getEventoCor, EVENTO_TIPO_LABEL } from "@/lib/types";
-import type { EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
+import { getEventoCor } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 type Props = {
   eventos: EventoComPessoas[];
   pessoas: Pessoa[];
+  tipos: TipoEvento[];
 };
 
 function formatDate(iso: string) {
   return iso.split("-").reverse().join("/");
 }
 
-export function EventosCliente({ eventos, pessoas }: Props) {
+export function EventosCliente({ eventos, pessoas, tipos }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [eventoSel, setEventoSel] = useState<EventoComPessoas | null>(null);
-  const [filtroTipo, setFiltroTipo] = useState<EventoTipo | "todos">("todos");
+  const [filtroTipo, setFiltroTipo] = useState<string>("todos");
+
+  function tipoLabel(slug: string): string {
+    return tipos.find((t) => t.slug === slug)?.label ?? slug;
+  }
 
   const tiposPresentes = Array.from(new Set(eventos.map((e) => e.tipo)));
 
@@ -67,7 +72,7 @@ export function EventosCliente({ eventos, pessoas }: Props) {
                     : "border-border bg-background hover:bg-muted"
                 }`}
               >
-                {EVENTO_TIPO_LABEL[tipo]} ({count})
+                {tipoLabel(tipo)} ({count})
               </button>
             );
           })}
@@ -119,7 +124,7 @@ export function EventosCliente({ eventos, pessoas }: Props) {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <Badge variant="secondary" className="text-xs">
-                    {EVENTO_TIPO_LABEL[ev.tipo]}
+                    {tipoLabel(ev.tipo)}
                   </Badge>
                   {ev.recorrente_anual && (
                     <span className="text-muted-foreground text-xs">↻ anual</span>
@@ -136,6 +141,7 @@ export function EventosCliente({ eventos, pessoas }: Props) {
         onClose={() => setModalOpen(false)}
         evento={eventoSel}
         pessoas={pessoas}
+        tipos={tipos}
       />
     </div>
   );

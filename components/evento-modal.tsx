@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { EMOJIS_EVENTO, EVENTO_TIPO_LABEL } from "@/lib/types";
-import type { EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
+import { EMOJIS_EVENTO } from "@/lib/types";
+import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 const CORES_FAMILIA = [
   "#3b82f6", // azul
@@ -45,9 +45,8 @@ type Props = {
   evento?: EventoComPessoas | null;
   defaultDate?: string;
   pessoas: Pessoa[];
+  tipos: TipoEvento[];
 };
-
-const TIPOS = Object.entries(EVENTO_TIPO_LABEL) as [EventoTipo, string][];
 
 export function EventoModal({
   open,
@@ -55,10 +54,13 @@ export function EventoModal({
   evento,
   defaultDate,
   pessoas,
+  tipos,
 }: Props) {
+  const defaultTipo = tipos[0]?.slug ?? "outro";
+
   const [pending, startTransition] = useTransition();
   const [titulo, setTitulo] = useState("");
-  const [tipo, setTipo] = useState<EventoTipo>("outro");
+  const [tipo, setTipo] = useState<string>(defaultTipo);
   const [dataInicio, setDataInicio] = useState(
     defaultDate ?? new Date().toISOString().split("T")[0],
   );
@@ -94,12 +96,12 @@ export function EventoModal({
       setRecorrenteAnual(evento.recorrente_anual ?? false);
     } else {
       setTitulo("");
-      setTipo("outro");
+      setTipo(defaultTipo);
       setDataInicio(defaultDate ?? new Date().toISOString().split("T")[0]);
       setDataFim(defaultDate ?? new Date().toISOString().split("T")[0]);
       setNotas("");
       setPessoasSel([]);
-      setCorEvento(CORES_FAMILIA[0]);
+      setCorEvento(tipos[0]?.cor_hex ?? CORES_FAMILIA[0]);
       setEmojiSel(null);
       setTravaAgenda(false);
       setRecorrenteAnual(false);
@@ -191,15 +193,22 @@ export function EventoModal({
             <Label>Tipo</Label>
             <Select
               value={tipo}
-              onValueChange={(v) => setTipo(v as EventoTipo)}
+              onValueChange={(v) => {
+                if (!v) return;
+                setTipo(v);
+                if (!evento) {
+                  const t = tipos.find((x) => x.slug === v);
+                  if (t) setCorEvento(t.cor_hex);
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TIPOS.map(([v, l]) => (
-                  <SelectItem key={v} value={v}>
-                    {l}
+                {tipos.map((t) => (
+                  <SelectItem key={t.id} value={t.slug}>
+                    {t.label}
                   </SelectItem>
                 ))}
               </SelectContent>
