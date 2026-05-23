@@ -58,6 +58,15 @@ export type EventoComPessoas = Evento & {
   pessoas: Pessoa[];
 };
 
+export type Rotina = {
+  id: string;
+  dia_semana: number;
+  texto: string;
+  hora: string | null;
+  ordem: number;
+  ativo: boolean;
+};
+
 export type EscalaMensal = {
   id: string;
   funcionario_id: string;

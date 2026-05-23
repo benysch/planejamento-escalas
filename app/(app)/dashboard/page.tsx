@@ -10,49 +10,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MESES } from "@/lib/types";
-import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
-
-// ─── Rotinas semanais ───────────────────────────────────────────────────────
-
-type RotinaItem = { texto: string; hora?: string };
-
-const ROTINAS: Record<number, RotinaItem[]> = {
-  1: [
-    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
-    { texto: "Ilan — Hebraica (Brincar livre)", hora: "8:30 – 14:00" },
-    { texto: "Lia — Ballet", hora: "15:15 – 16:00" },
-  ],
-  2: [
-    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
-    { texto: "Ilan — Natação", hora: "8:45 – 9:20" },
-    { texto: "Lia e Ilan em casa" },
-  ],
-  3: [
-    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
-    { texto: "Ilan — Clube Jacaré / Musicalização", hora: "15:00 – 15:40" },
-    { texto: "Lia — Ballet", hora: "15:15 – 16:00" },
-  ],
-  4: [
-    { texto: "Faxineira em casa" },
-    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
-    { texto: "Ilan — Hebraica (Brincar livre)", hora: "8:30 – 14:00" },
-    { texto: "Tia Syl pegar Lia na escola" },
-    { texto: "Lia e Ilan em casa — tarde" },
-  ],
-  5: [
-    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
-    { texto: "Ilan em casa" },
-    { texto: "Lia — Natação (Muri pegar)", hora: "15:15 – 16:00" },
-    { texto: "Jantar nos Avós (Abra e Arlete)" },
-  ],
-};
+import type { EventoComPessoas, Pessoa, Rotina, TipoEvento } from "@/lib/types";
 
 const DIAS_SEMANA = [
   "Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira",
   "Quinta-feira", "Sexta-feira", "Sábado",
 ];
-
-// ─── Data ────────────────────────────────────────────────────────────────────
 
 async function getDashboardData() {
   const sb = getSupabase();
@@ -63,7 +26,7 @@ async function getDashboardData() {
     .toISOString()
     .split("T")[0];
 
-  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }, { data: tipos }] =
+  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }, { data: tipos }, { data: rotinas }] =
     await Promise.all([
       sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
       sb
@@ -80,6 +43,7 @@ async function getDashboardData() {
         .order("data_inicio")
         .limit(10),
       sb.from("pe_evento_tipos").select("*").order("ordem"),
+      sb.from("pe_rotinas").select("*").eq("ativo", true).order("dia_semana").order("ordem"),
     ]);
 
   const pessoaMap = new Map<string, Pessoa>(
@@ -132,6 +96,7 @@ async function getDashboardData() {
     today,
     anoAtual,
     tipos: (tipos ?? []) as TipoEvento[],
+    rotinas: (rotinas ?? []) as Rotina[],
   };
 }
 
@@ -175,7 +140,7 @@ function EventoItem({ evento, tipos }: { evento: EventoComPessoas; tipos: TipoEv
 }
 
 export default async function DashboardPage() {
-  const { funcionarios, eventosHoje, proximos, ausentes, conflitos, today, tipos } =
+  const { funcionarios, eventosHoje, proximos, ausentes, conflitos, today, tipos, rotinas } =
     await getDashboardData();
 
   const [y, m, d] = today.split("-");
@@ -183,7 +148,9 @@ export default async function DashboardPage() {
 
   const diaSemana = new Date(`${today}T12:00:00`).getDay();
   const nomeDia = DIAS_SEMANA[diaSemana];
-  const rotinaHoje = ROTINAS[diaSemana] ?? null;
+  const rotinaHoje = diaSemana >= 1 && diaSemana <= 5
+    ? rotinas.filter((r) => r.dia_semana === diaSemana)
+    : null;
   const hasFeriado = eventosHoje.some((e) => e.tipo === "feriado");
   const hasViagemFamilia = eventosHoje.some((e) => e.tipo === "viagem_familia");
   const rotinaSuspensa = hasFeriado || hasViagemFamilia;
@@ -213,7 +180,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {rotinaHoje && (
+      {rotinaHoje && rotinaHoje.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -232,8 +199,8 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {rotinaHoje.map((item, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm">
+              {rotinaHoje.map((item) => (
+                <li key={item.id} className="flex items-center gap-3 text-sm">
                   {item.hora ? (
                     <span className="flex items-center gap-1 shrink-0 text-xs font-medium text-muted-foreground w-24">
                       <Clock className="size-3" />

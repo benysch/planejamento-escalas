@@ -180,6 +180,44 @@ export async function deleteTipoEvento(id: string) {
   revalidatePath("/", "layout");
 }
 
+// ─── Rotinas ────────────────────────────────────────────────────────────────
+
+export async function createRotina(data: {
+  dia_semana: number;
+  texto: string;
+  hora?: string | null;
+}) {
+  const sb = getSupabase();
+  const { data: last } = await sb
+    .from("pe_rotinas")
+    .select("ordem")
+    .eq("dia_semana", data.dia_semana)
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .single();
+  const ordem = (last?.ordem ?? 0) + 1;
+  const { error } = await sb.from("pe_rotinas").insert({ ...data, ordem });
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
+export async function updateRotina(
+  id: string,
+  data: { texto?: string; hora?: string | null },
+) {
+  const sb = getSupabase();
+  const { error } = await sb.from("pe_rotinas").update(data).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
+export async function deleteRotina(id: string) {
+  const sb = getSupabase();
+  const { error } = await sb.from("pe_rotinas").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
 // ─── Escala Mensal ──────────────────────────────────────────────────────────
 
 export async function upsertEscalaMensal(data: {
