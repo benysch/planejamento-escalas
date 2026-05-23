@@ -148,12 +148,20 @@ export default async function DashboardPage() {
 
   const diaSemana = new Date(`${today}T12:00:00`).getDay();
   const nomeDia = DIAS_SEMANA[diaSemana];
-  const rotinaHoje = diaSemana >= 1 && diaSemana <= 5
+  const feriadoHoje = eventosHoje.find((e) => e.tipo === "feriado") ?? null;
+  const isWeekend = diaSemana === 0 || diaSemana === 6;
+  const showGreeting = isWeekend || !!feriadoHoje;
+
+  const greeting = (() => {
+    if (diaSemana === 6) return { texto: "Bom Sábado!", emoji: "☀️", sub: "Aproveite o fim de semana!" };
+    if (diaSemana === 0) return { texto: "Bom Domingo!", emoji: "🌿", sub: "Aproveite o descanso!" };
+    if (feriadoHoje) return { texto: `Bom Feriado de ${feriadoHoje.titulo}!`, emoji: "🎉", sub: "Dia de descanso — sem rotina hoje." };
+    return null;
+  })();
+
+  const rotinaHoje = !showGreeting && diaSemana >= 1 && diaSemana <= 5
     ? rotinas.filter((r) => r.dia_semana === diaSemana)
     : null;
-  const hasFeriado = eventosHoje.some((e) => e.tipo === "feriado");
-  const hasViagemFamilia = eventosHoje.some((e) => e.tipo === "viagem_familia");
-  const rotinaSuspensa = hasFeriado || hasViagemFamilia;
 
   return (
     <div className="space-y-6">
@@ -180,6 +188,14 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {greeting && (
+        <div className="rounded-xl border bg-gradient-to-br from-amber-50 to-orange-50 px-8 py-10 dark:from-amber-950/20 dark:to-orange-950/20 dark:border-amber-900/30">
+          <div className="text-5xl mb-3">{greeting.emoji}</div>
+          <p className="text-3xl font-bold tracking-tight">{greeting.texto}</p>
+          <p className="text-muted-foreground mt-1 text-sm">{greeting.sub}</p>
+        </div>
+      )}
+
       {rotinaHoje && rotinaHoje.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -187,15 +203,6 @@ export default async function DashboardPage() {
               <ListChecks className="size-4" />
               Rotina de hoje — {nomeDia}
             </CardTitle>
-            {rotinaSuspensa && (
-              <div className="flex items-center gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
-                <AlertTriangle className="size-3.5 shrink-0" />
-                <span className="text-xs font-medium">
-                  Rotina possivelmente alterada —{" "}
-                  {hasFeriado ? "feriado" : "viagem família"} hoje
-                </span>
-              </div>
-            )}
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -209,9 +216,7 @@ export default async function DashboardPage() {
                   ) : (
                     <span className="w-24 shrink-0" />
                   )}
-                  <span className={rotinaSuspensa ? "text-muted-foreground line-through" : ""}>
-                    {item.texto}
-                  </span>
+                  <span>{item.texto}</span>
                 </li>
               ))}
             </ul>
