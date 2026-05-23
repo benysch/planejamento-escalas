@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   CalendarRange,
+  ClipboardList,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -33,6 +34,7 @@ const navItems = [
   { title: "Visão Anual", url: "/anual", icon: CalendarRange },
   { title: "Funcionários", url: "/funcionarios", icon: Users },
   { title: "Eventos", url: "/eventos", icon: ListChecks },
+  { title: "Rotinas", url: "/rotinas", icon: ClipboardList },
 ];
 
 export function AppSidebar() {

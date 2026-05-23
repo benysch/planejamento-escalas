@@ -11,9 +11,6 @@ import {
   createTipoEvento,
   updateTipoEvento,
   deleteTipoEvento,
-  createRotina,
-  updateRotina,
-  deleteRotina,
 } from "@/app/(app)/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CARGO_LABEL } from "@/lib/types";
-import type { Pessoa, PessoaCargo, PessoaTipo, Rotina, TipoEvento } from "@/lib/types";
+import type { Pessoa, PessoaCargo, PessoaTipo, TipoEvento } from "@/lib/types";
 
 const CARGOS_FAMILIAR: PessoaCargo[] = ["adulto", "crianca"];
 const CARGOS_FUNCIONARIO: PessoaCargo[] = [
@@ -64,15 +61,7 @@ const CORES = [
   "#6b7280",
 ];
 
-const DIAS_ROTINA = [
-  { value: 1, label: "Seg" },
-  { value: 2, label: "Ter" },
-  { value: 3, label: "Qua" },
-  { value: 4, label: "Qui" },
-  { value: 5, label: "Sex" },
-];
-
-type Props = { pessoas: Pessoa[]; tipos: TipoEvento[]; rotinas: Rotina[] };
+type Props = { pessoas: Pessoa[]; tipos: TipoEvento[] };
 
 type Form = {
   nome: string;
@@ -90,7 +79,7 @@ function defaultTipoForm(): TipoForm {
   return { label: "", cor_hex: "#6366f1" };
 }
 
-export function ConfiguracoesCliente({ pessoas, tipos, rotinas }: Props) {
+export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
   const [pending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Pessoa | null>(null);
@@ -100,66 +89,6 @@ export function ConfiguracoesCliente({ pessoas, tipos, rotinas }: Props) {
   const [tipoModalOpen, setTipoModalOpen] = useState(false);
   const [tipoEditando, setTipoEditando] = useState<TipoEvento | null>(null);
   const [tipoForm, setTipoForm] = useState<TipoForm>(defaultTipoForm());
-
-  // Rotinas
-  const [diaSel, setDiaSel] = useState(1);
-  const [rotinaModalOpen, setRotinaModalOpen] = useState(false);
-  const [rotinaEditando, setRotinaEditando] = useState<Rotina | null>(null);
-  const [rotinaTexto, setRotinaTexto] = useState("");
-  const [rotinaHora, setRotinaHora] = useState("");
-
-  function openCriarRotina() {
-    setRotinaEditando(null);
-    setRotinaTexto("");
-    setRotinaHora("");
-    setRotinaModalOpen(true);
-  }
-
-  function openEditarRotina(r: Rotina) {
-    setRotinaEditando(r);
-    setRotinaTexto(r.texto);
-    setRotinaHora(r.hora ?? "");
-    setRotinaModalOpen(true);
-  }
-
-  function handleSaveRotina() {
-    if (!rotinaTexto.trim()) return;
-    startTransition(async () => {
-      try {
-        if (rotinaEditando) {
-          await updateRotina(rotinaEditando.id, {
-            texto: rotinaTexto.trim(),
-            hora: rotinaHora.trim() || null,
-          });
-          toast.success("Rotina atualizada.");
-        } else {
-          await createRotina({
-            dia_semana: diaSel,
-            texto: rotinaTexto.trim(),
-            hora: rotinaHora.trim() || null,
-          });
-          toast.success("Rotina adicionada.");
-        }
-        setRotinaModalOpen(false);
-      } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
-      }
-    });
-  }
-
-  function handleDeleteRotina(id: string) {
-    startTransition(async () => {
-      try {
-        await deleteRotina(id);
-        toast.success("Rotina removida.");
-        setRotinaModalOpen(false);
-      } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : "Erro ao remover.");
-      }
-    });
-  }
-
-  const rotinasDia = rotinas.filter((r) => r.dia_semana === diaSel);
 
   function openCriarTipo() {
     setTipoEditando(null);
@@ -404,120 +333,6 @@ export function ConfiguracoesCliente({ pessoas, tipos, rotinas }: Props) {
           </ul>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">Rotinas semanais</CardTitle>
-          <Button size="sm" variant="outline" onClick={openCriarRotina}>
-            <Plus className="mr-1 size-3.5" />
-            Adicionar
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-1">
-            {DIAS_ROTINA.map((d) => (
-              <button
-                key={d.value}
-                type="button"
-                onClick={() => setDiaSel(d.value)}
-                className={`flex-1 rounded py-1.5 text-sm font-medium transition-colors ${
-                  diaSel === d.value
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          {rotinasDia.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-2 text-center">
-              Nenhuma rotina para este dia.
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {rotinasDia.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center gap-2 rounded-md border px-3 py-2"
-                >
-                  {r.hora ? (
-                    <span className="shrink-0 text-xs font-medium text-muted-foreground w-24">
-                      {r.hora}
-                    </span>
-                  ) : (
-                    <span className="w-24 shrink-0" />
-                  )}
-                  <span className="flex-1 text-sm">{r.texto}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7"
-                    onClick={() => openEditarRotina(r)}
-                  >
-                    <Edit2 className="size-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={rotinaModalOpen} onOpenChange={(v) => !v && setRotinaModalOpen(false)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              {rotinaEditando ? "Editar rotina" : `Nova rotina — ${DIAS_ROTINA.find((d) => d.value === diaSel)?.label}`}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Input
-                value={rotinaTexto}
-                onChange={(e) => setRotinaTexto(e.target.value)}
-                autoFocus
-                placeholder="Ex: Lia — Ballet"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Horário (opcional)</Label>
-              <Input
-                value={rotinaHora}
-                onChange={(e) => setRotinaHora(e.target.value)}
-                placeholder="Ex: 15:15 – 16:00"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            {rotinaEditando && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDeleteRotina(rotinaEditando.id)}
-                disabled={pending}
-              >
-                <Trash2 className="mr-1 size-3.5" />
-                Remover
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => setRotinaModalOpen(false)}
-              disabled={pending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveRotina}
-              disabled={pending || !rotinaTexto.trim()}
-            >
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={tipoModalOpen} onOpenChange={(v) => !v && setTipoModalOpen(false)}>
         <DialogContent className="max-w-sm">
