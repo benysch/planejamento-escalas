@@ -26,7 +26,7 @@ async function getDashboardData() {
     .toISOString()
     .split("T")[0];
 
-  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }, { data: tipos }, { data: rotinas }] =
+  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }, { data: tipos }, { data: rotinas }, { data: escalaHoje }] =
     await Promise.all([
       sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
       sb
@@ -44,6 +44,7 @@ async function getDashboardData() {
         .limit(10),
       sb.from("pe_evento_tipos").select("*").order("ordem"),
       sb.from("pe_rotinas").select("*").eq("ativo", true).order("dia_semana").order("ordem"),
+      sb.from("pe_escala_dias").select("funcionario_id").eq("data", today),
     ]);
 
   const pessoaMap = new Map<string, Pessoa>(
@@ -67,6 +68,10 @@ async function getDashboardData() {
   const proximosEnriquecidos = (proximosEventos ?? []).map(enrichEvento);
 
   const funcionarios = (pessoas ?? []).filter((p) => p.tipo === "funcionario");
+
+  const programadosHoje = new Set(
+    (escalaHoje ?? []).map((d) => d.funcionario_id),
+  );
   const ausenciasHoje = eventosHojeEnriquecidos.filter((e) =>
     ["folga_funcionario", "ferias_funcionario"].includes(e.tipo),
   );
@@ -92,6 +97,7 @@ async function getDashboardData() {
     eventosHoje: eventosHojeEnriquecidos,
     proximos: proximosEnriquecidos,
     ausentes,
+    programadosHoje,
     conflitos,
     today,
     anoAtual,
@@ -140,7 +146,7 @@ function EventoItem({ evento, tipos }: { evento: EventoComPessoas; tipos: TipoEv
 }
 
 export default async function DashboardPage() {
-  const { funcionarios, eventosHoje, proximos, ausentes, conflitos, today, tipos, rotinas } =
+  const { funcionarios, eventosHoje, proximos, ausentes, programadosHoje, conflitos, today, tipos, rotinas } =
     await getDashboardData();
 
   const [y, m, d] = today.split("-");
@@ -239,22 +245,32 @@ export default async function DashboardPage() {
               </p>
             ) : (
               <ul className="space-y-1.5">
-                {funcionarios.map((f) => (
-                  <li key={f.id} className="flex items-center gap-2 text-sm">
-                    <div
-                      className="size-2 rounded-full"
-                      style={{ backgroundColor: f.cor_hex }}
-                    />
-                    <span className="flex-1">{f.nome}</span>
-                    {ausentes.has(f.id) ? (
-                      <Badge variant="secondary" className="text-xs">
-                        Ausente
-                      </Badge>
-                    ) : (
-                      <Badge className="text-xs">Presente</Badge>
-                    )}
-                  </li>
-                ))}
+                {funcionarios.map((f) => {
+                  const temFolga = ausentes.has(f.id);
+                  const programado = programadosHoje.has(f.id);
+                  return (
+                    <li key={f.id} className="flex items-center gap-2 text-sm">
+                      <div
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: f.cor_hex }}
+                      />
+                      <span className="flex-1">{f.nome}</span>
+                      {temFolga ? (
+                        <Badge variant="secondary" className="text-xs">
+                          Folga/Férias
+                        </Badge>
+                      ) : programado ? (
+                        <Badge className="text-xs bg-emerald-600 hover:bg-emerald-600">
+                          Programado
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Não programado
+                        </Badge>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </CardContent>

@@ -1,51 +1,63 @@
 import { getSupabase } from "@/lib/supabase/server";
-import { CARGO_LABEL, MESES } from "@/lib/types";
+import { MESES } from "@/lib/types";
 import type { EscalaMensal, Pessoa } from "@/lib/types";
 import { FuncionariosCliente } from "./funcionarios-cliente";
 
-async function getData(ano: number) {
+async function getData(ano: number, mes: number) {
   const sb = getSupabase();
-  const [{ data: pessoas }, { data: escala }] = await Promise.all([
-    sb
-      .from("pe_pessoas")
-      .select("*")
-      .eq("tipo", "funcionario")
-      .order("nome"),
-    sb
-      .from("pe_escala_mensal")
-      .select("*")
-      .eq("ano", ano)
-      .order("mes"),
-  ]);
+  const primeiroDia = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const ultimoDia = new Date(ano, mes, 0);
+  const ultimoDiaStr = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia.getDate()).padStart(2, "0")}`;
 
-  return {
-    funcionarios: (pessoas ?? []) as Pessoa[],
-    escala: (escala ?? []) as EscalaMensal[],
-  };
+  const [{ data: pessoas }, { data: escalasDias }, { data: escalasMensais }] =
+    await Promise.all([
+      sb.from("pe_pessoas").select("*").eq("tipo", "funcionario").order("nome"),
+      sb
+        .from("pe_escala_dias")
+        .select("funcionario_id, data")
+        .gte("data", primeiroDia)
+        .lte("data", ultimoDiaStr),
+      sb
+        .from("pe_escala_mensal")
+        .select("*")
+        .eq("ano", ano)
+        .eq("mes", mes),
+    ]);
+
+  const diasPorFuncionario: Record<string, string[]> = {};
+  for (const d of escalasDias ?? []) {
+    if (!diasPorFuncionario[d.funcionario_id])
+      diasPorFuncionario[d.funcionario_id] = [];
+    diasPorFuncionario[d.funcionario_id].push(d.data);
+  }
+
+  const escalaMensalPorFuncionario: Record<string, EscalaMensal> = {};
+  for (const e of escalasMensais ?? []) {
+    escalaMensalPorFuncionario[e.funcionario_id] = e as EscalaMensal;
+  }
+
+  return { funcionarios: (pessoas ?? []) as Pessoa[], diasPorFuncionario, escalaMensalPorFuncionario };
 }
 
 export default async function FuncionariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ano?: string }>;
+  searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
   const sp = await searchParams;
-  const ano = parseInt(sp.ano ?? String(new Date().getFullYear()));
-  const { funcionarios, escala } = await getData(ano);
+  const hoje = new Date();
+  const ano = parseInt(sp.ano ?? String(hoje.getFullYear()));
+  const mes = parseInt(sp.mes ?? String(hoje.getMonth() + 1));
 
-  const escalaPorFuncionario = new Map<string, Map<number, EscalaMensal>>();
-  for (const e of escala) {
-    if (!escalaPorFuncionario.has(e.funcionario_id))
-      escalaPorFuncionario.set(e.funcionario_id, new Map());
-    escalaPorFuncionario.get(e.funcionario_id)!.set(e.mes, e);
-  }
+  const { funcionarios, diasPorFuncionario, escalaMensalPorFuncionario } =
+    await getData(ano, mes);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Funcionários</h1>
         <p className="text-muted-foreground text-sm">
-          Escala mensal e controle de dias trabalhados.
+          Escala mensal — marque os dias de cada funcionário.
         </p>
       </div>
 
@@ -56,14 +68,11 @@ export default async function FuncionariosPage({
       ) : (
         <FuncionariosCliente
           funcionarios={funcionarios}
-          escalaPorFuncionario={Object.fromEntries(
-            Array.from(escalaPorFuncionario.entries()).map(([k, v]) => [
-              k,
-              Object.fromEntries(v.entries()),
-            ]),
-          )}
+          diasPorFuncionario={diasPorFuncionario}
+          escalaMensalPorFuncionario={escalaMensalPorFuncionario}
           ano={ano}
-          meses={MESES}
+          mes={mes}
+          nomeMes={MESES[mes - 1]}
         />
       )}
     </div>

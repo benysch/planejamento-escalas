@@ -67,6 +67,12 @@ export type Rotina = {
   ativo: boolean;
 };
 
+export type EscalaDia = {
+  id: string;
+  funcionario_id: string;
+  data: string; // YYYY-MM-DD
+};
+
 export type EscalaMensal = {
   id: string;
   funcionario_id: string;

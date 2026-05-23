@@ -1,271 +1,288 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useTransition, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { upsertEscalaMensal } from "@/app/(app)/actions";
+import { toggleEscalaDia, upsertEscalaMensal } from "@/app/(app)/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CARGO_LABEL, MESES } from "@/lib/types";
 import type { EscalaMensal, Pessoa } from "@/lib/types";
+
+const DIAS_HEADER = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 type Props = {
   funcionarios: Pessoa[];
-  escalaPorFuncionario: Record<string, Record<number, EscalaMensal>>;
+  diasPorFuncionario: Record<string, string[]>;
+  escalaMensalPorFuncionario: Record<string, EscalaMensal>;
   ano: number;
-  meses: string[];
+  mes: number;
+  nomeMes: string;
 };
 
-function EscalaInput({
-  value,
-  label,
-  onChange,
-}: {
-  value: number;
-  label: string;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="space-y-0.5 text-center">
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-      <Input
-        type="number"
-        min={0}
-        max={31}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        className="h-8 w-14 text-center text-sm"
-      />
-    </div>
-  );
-}
+// ─── Mini-calendário por funcionário ────────────────────────────────────────
 
-export function FuncionariosCliente({
-  funcionarios,
-  escalaPorFuncionario,
+function EscalaCard({
+  funcionario,
+  diasProgramados,
+  escala,
   ano,
-  meses,
-}: Props) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [editando, setEditando] = useState<{
-    funcId: string;
-    mes: number;
-    dias_trabalhados: number;
-    dias_programados: number;
-    saldo_vt: number;
-  } | null>(null);
+  mes,
+}: {
+  funcionario: Pessoa;
+  diasProgramados: string[];
+  escala: EscalaMensal | undefined;
+  ano: number;
+  mes: number;
+}) {
+  const [, startTransition] = useTransition();
+  const [optimisticDias, toggleOptimistic] = useOptimistic(
+    diasProgramados,
+    (state: string[], dia: string) =>
+      state.includes(dia) ? state.filter((d) => d !== dia) : [...state, dia],
+  );
 
-  function navAno(delta: number) {
-    router.push(`/funcionarios?ano=${ano + delta}`);
+  // VT edit
+  const [vtEditando, setVtEditando] = useState(false);
+  const [vtPending, startVtTransition] = useTransition();
+  const [saldoVt, setSaldoVt] = useState(escala?.saldo_vt ?? 0);
+  const [notas, setNotas] = useState(escala?.notas ?? "");
+
+  const primeiroDia = new Date(ano, mes - 1, 1).getDay();
+  const totalDias = new Date(ano, mes, 0).getDate();
+  const cells: (number | null)[] = Array(primeiroDia).fill(null);
+  for (let d = 1; d <= totalDias; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const hoje = new Date().toISOString().split("T")[0];
+  const mesStr = `${ano}-${String(mes).padStart(2, "0")}`;
+
+  function handleToggle(dia: number) {
+    const dateStr = `${mesStr}-${String(dia).padStart(2, "0")}`;
+    startTransition(async () => {
+      toggleOptimistic(dateStr);
+      try {
+        await toggleEscalaDia(funcionario.id, dateStr);
+      } catch {
+        toast.error("Erro ao salvar.");
+      }
+    });
   }
 
-  function handleSave() {
-    if (!editando) return;
-    startTransition(async () => {
+  function handleSaveVt() {
+    startVtTransition(async () => {
       try {
         await upsertEscalaMensal({
-          funcionario_id: editando.funcId,
-          mes: editando.mes,
+          funcionario_id: funcionario.id,
+          mes,
           ano,
-          dias_trabalhados: editando.dias_trabalhados,
-          dias_programados: editando.dias_programados,
-          saldo_vt: editando.saldo_vt,
+          dias_trabalhados: 0,
+          dias_programados: optimisticDias.length,
+          saldo_vt: saldoVt,
+          notas: notas || null,
         });
-        toast.success("Escala salva.");
-        setEditando(null);
+        toast.success("VT salvo.");
+        setVtEditando(false);
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
       }
     });
   }
 
+  const totalProgramados = optimisticDias.length;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <div
+            className="size-3 shrink-0 rounded-full"
+            style={{ backgroundColor: funcionario.cor_hex }}
+          />
+          {funcionario.nome}
+          <Badge variant="secondary" className="text-xs font-normal">
+            {CARGO_LABEL[(funcionario.cargo as keyof typeof CARGO_LABEL) ?? "outro"]}
+          </Badge>
+          {!funcionario.ativo && (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              Inativo
+            </Badge>
+          )}
+          <span className="ml-auto text-xs font-normal text-muted-foreground">
+            {totalProgramados} {totalProgramados === 1 ? "dia" : "dias"} programados
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Mini calendário */}
+        <div className="grid grid-cols-7 gap-1 text-center text-xs">
+          {DIAS_HEADER.map((d, i) => (
+            <div
+              key={i}
+              className={`py-1 font-medium ${i === 0 || i === 6 ? "text-muted-foreground/60" : "text-muted-foreground"}`}
+            >
+              {d}
+            </div>
+          ))}
+          {cells.map((dia, idx) => {
+            if (!dia) return <div key={idx} />;
+
+            const dateStr = `${mesStr}-${String(dia).padStart(2, "0")}`;
+            const programado = optimisticDias.includes(dateStr);
+            const isHoje = dateStr === hoje;
+            const isWeekend = idx % 7 === 0 || idx % 7 === 6;
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleToggle(dia)}
+                className={[
+                  "flex h-8 w-full items-center justify-center rounded-md text-xs font-medium transition-all",
+                  programado
+                    ? "text-white shadow-sm"
+                    : isWeekend
+                      ? "text-muted-foreground/50 hover:bg-muted"
+                      : "text-foreground hover:bg-muted",
+                  isHoje && !programado ? "ring-2 ring-primary ring-offset-1" : "",
+                  isHoje && programado ? "ring-2 ring-offset-1 ring-white/70" : "",
+                ].join(" ")}
+                style={programado ? { backgroundColor: funcionario.cor_hex } : undefined}
+              >
+                {dia}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* VT */}
+        <div className="border-t pt-3">
+          {vtEditando ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground shrink-0">VT (dias):</span>
+              <Input
+                type="number"
+                min={0}
+                value={saldoVt}
+                onChange={(e) => setSaldoVt(parseInt(e.target.value) || 0)}
+                className="h-7 w-16 text-center text-xs"
+              />
+              <Input
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                className="h-7 flex-1 text-xs"
+                placeholder="Notas…"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => setVtEditando(false)}
+                disabled={vtPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleSaveVt}
+                disabled={vtPending}
+              >
+                Salvar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                VT: <span className="font-medium text-foreground">{escala?.saldo_vt ?? "—"} dias</span>
+              </span>
+              {escala?.notas && (
+                <span className="text-xs text-muted-foreground truncate flex-1">{escala.notas}</span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 ml-auto text-xs"
+                onClick={() => {
+                  setSaldoVt(escala?.saldo_vt ?? 0);
+                  setNotas(escala?.notas ?? "");
+                  setVtEditando(true);
+                }}
+              >
+                Editar VT
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Componente principal ────────────────────────────────────────────────────
+
+export function FuncionariosCliente({
+  funcionarios,
+  diasPorFuncionario,
+  escalaMensalPorFuncionario,
+  ano,
+  mes,
+  nomeMes,
+}: Props) {
+  const router = useRouter();
+
+  function navMes(delta: number) {
+    let novoMes = mes + delta;
+    let novoAno = ano;
+    if (novoMes > 12) { novoMes = 1; novoAno++; }
+    else if (novoMes < 1) { novoMes = 12; novoAno--; }
+    router.push(`/funcionarios?ano=${novoAno}&mes=${novoMes}`);
+  }
+
+  function irHoje() {
+    const n = new Date();
+    router.push(`/funcionarios?ano=${n.getFullYear()}&mes=${n.getMonth() + 1}`);
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => navAno(-1)}>
+      {/* Navegação */}
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" onClick={() => navMes(-1)}>
           <ChevronLeft className="size-4" />
         </Button>
-        <span className="text-lg font-semibold w-16 text-center">{ano}</span>
-        <Button variant="ghost" size="icon" onClick={() => navAno(1)}>
+        <button
+          type="button"
+          className="text-lg font-semibold px-2 hover:text-primary transition-colors"
+          onClick={irHoje}
+        >
+          {nomeMes} {ano}
+        </button>
+        <Button variant="ghost" size="icon" onClick={() => navMes(1)}>
           <ChevronRight className="size-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="ml-1" onClick={irHoje}>
+          Hoje
         </Button>
       </div>
 
-      {funcionarios.map((func) => {
-        const escalaFunc = escalaPorFuncionario[func.id] ?? {};
-        const totalTrabalhados = Object.values(escalaFunc).reduce(
-          (sum, e) => sum + e.dias_trabalhados,
-          0,
-        );
-
-        return (
-          <Card key={func.id}>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-3 text-base">
-                <div
-                  className="size-3 rounded-full"
-                  style={{ backgroundColor: func.cor_hex }}
-                />
-                {func.nome}
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {func.cargo ?? "funcionário"}
-                </Badge>
-                {!func.ativo && (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    Inativo
-                  </Badge>
-                )}
-                <span className="ml-auto text-sm font-normal text-muted-foreground">
-                  Total {ano}: {totalTrabalhados} dias
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="py-1.5 text-left text-xs font-medium text-muted-foreground">
-                        Mês
-                      </th>
-                      <th className="py-1.5 text-center text-xs font-medium text-muted-foreground">
-                        Programados
-                      </th>
-                      <th className="py-1.5 text-center text-xs font-medium text-muted-foreground">
-                        Trabalhados
-                      </th>
-                      <th className="py-1.5 text-center text-xs font-medium text-muted-foreground">
-                        VT (dias)
-                      </th>
-                      <th className="py-1.5" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {meses.map((nomeMes, idx) => {
-                      const mes = idx + 1;
-                      const e = escalaFunc[mes];
-                      const isEditando =
-                        editando?.funcId === func.id &&
-                        editando?.mes === mes;
-
-                      return (
-                        <tr key={mes} className="border-b last:border-0 hover:bg-muted/30">
-                          <td className="py-1.5 font-medium">{nomeMes}</td>
-                          {isEditando ? (
-                            <>
-                              <td className="py-1 text-center">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={31}
-                                  value={editando.dias_programados}
-                                  onChange={(ev) =>
-                                    setEditando({
-                                      ...editando,
-                                      dias_programados:
-                                        parseInt(ev.target.value) || 0,
-                                    })
-                                  }
-                                  className="mx-auto h-7 w-14 text-center text-sm"
-                                />
-                              </td>
-                              <td className="py-1 text-center">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={31}
-                                  value={editando.dias_trabalhados}
-                                  onChange={(ev) =>
-                                    setEditando({
-                                      ...editando,
-                                      dias_trabalhados:
-                                        parseInt(ev.target.value) || 0,
-                                    })
-                                  }
-                                  className="mx-auto h-7 w-14 text-center text-sm"
-                                />
-                              </td>
-                              <td className="py-1 text-center">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={editando.saldo_vt}
-                                  onChange={(ev) =>
-                                    setEditando({
-                                      ...editando,
-                                      saldo_vt:
-                                        parseInt(ev.target.value) || 0,
-                                    })
-                                  }
-                                  className="mx-auto h-7 w-14 text-center text-sm"
-                                />
-                              </td>
-                              <td className="py-1 text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-xs"
-                                    onClick={() => setEditando(null)}
-                                  >
-                                    Cancelar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={handleSave}
-                                    disabled={pending}
-                                  >
-                                    Salvar
-                                  </Button>
-                                </div>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="py-1.5 text-center text-muted-foreground">
-                                {e?.dias_programados ?? "—"}
-                              </td>
-                              <td className="py-1.5 text-center font-medium">
-                                {e?.dias_trabalhados ?? "—"}
-                              </td>
-                              <td className="py-1.5 text-center text-muted-foreground">
-                                {e?.saldo_vt ?? "—"}
-                              </td>
-                              <td className="py-1.5 text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() =>
-                                    setEditando({
-                                      funcId: func.id,
-                                      mes,
-                                      dias_trabalhados: e?.dias_trabalhados ?? 0,
-                                      dias_programados: e?.dias_programados ?? 0,
-                                      saldo_vt: e?.saldo_vt ?? 0,
-                                    })
-                                  }
-                                >
-                                  Editar
-                                </Button>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+      {/* Cards */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {funcionarios.map((func) => (
+          <EscalaCard
+            key={func.id}
+            funcionario={func}
+            diasProgramados={diasPorFuncionario[func.id] ?? []}
+            escala={escalaMensalPorFuncionario[func.id]}
+            ano={ano}
+            mes={mes}
+          />
+        ))}
+      </div>
     </div>
   );
 }

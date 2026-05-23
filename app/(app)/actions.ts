@@ -218,6 +218,26 @@ export async function deleteRotina(id: string) {
   revalidatePath("/", "layout");
 }
 
+// ─── Escala Dias ────────────────────────────────────────────────────────────
+
+export async function toggleEscalaDia(funcionario_id: string, data: string) {
+  const sb = getSupabase();
+  const { data: existing } = await sb
+    .from("pe_escala_dias")
+    .select("id")
+    .eq("funcionario_id", funcionario_id)
+    .eq("data", data)
+    .maybeSingle();
+  if (existing) {
+    const { error } = await sb.from("pe_escala_dias").delete().eq("id", existing.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await sb.from("pe_escala_dias").insert({ funcionario_id, data });
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/", "layout");
+}
+
 // ─── Escala Mensal ──────────────────────────────────────────────────────────
 
 export async function upsertEscalaMensal(data: {
