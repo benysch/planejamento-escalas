@@ -154,18 +154,27 @@ export function CalendarioMensal({
       )}
 
       <div className="grid grid-cols-7 gap-px rounded-lg border bg-border overflow-hidden text-sm">
-        {DIAS_SEMANA.map((d) => (
+        {DIAS_SEMANA.map((d, i) => (
           <div
             key={d}
-            className="bg-muted/50 py-2 text-center text-xs font-medium text-muted-foreground"
+            className={`py-2 text-center text-xs font-medium text-muted-foreground ${
+              i === 0 || i === 6 ? "cell-fds-header" : "bg-muted/50"
+            }`}
           >
             {d}
           </div>
         ))}
 
         {cells.map((dia, idx) => {
+          const isWeekend = idx % 7 === 0 || idx % 7 === 6;
+
           if (!dia) {
-            return <div key={idx} className="bg-background min-h-[80px]" />;
+            return (
+              <div
+                key={idx}
+                className={`min-h-[80px] ${isWeekend ? "cell-fds" : "bg-background"}`}
+              />
+            );
           }
 
           const dateStr = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
@@ -173,6 +182,8 @@ export function CalendarioMensal({
           const isHoje = dateStr === hoje;
           const travado = evsDia.find((e) => e.trava_agenda) ?? null;
           const corTrava = travado ? getEventoCor(travado) : null;
+          const hasFeriado = evsDia.some((e) => e.tipo === "feriado");
+          const isEspecial = isWeekend || hasFeriado;
 
           // Célula travada: fundo sólido com a cor do evento
           if (travado && corTrava) {
@@ -213,7 +224,11 @@ export function CalendarioMensal({
           return (
             <div
               key={idx}
-              className="bg-background min-h-[80px] p-1 hover:bg-muted/30 cursor-pointer transition-colors"
+              className={`min-h-[80px] p-1 cursor-pointer transition-colors ${
+                isEspecial
+                  ? "cell-fds"
+                  : "bg-background hover:bg-muted/30"
+              }`}
               onClick={() => onDiaClick?.(dateStr)}
             >
               <div className="flex items-center justify-between">
