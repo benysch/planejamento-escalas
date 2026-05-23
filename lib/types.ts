@@ -39,6 +39,7 @@ export type Evento = {
   dia_todo: boolean;
   notas: string | null;
   cor_hex: string | null;
+  emoji: string | null;
   criado_em: string;
 };
 
@@ -90,6 +91,21 @@ export const CARGO_LABEL: Record<PessoaCargo, string> = {
   motorista: "Motorista",
   outro: "Outro",
 };
+
+export const EMOJIS_EVENTO = [
+  { emoji: "✡️", label: "Estrela de Davi" },
+  { emoji: "🎂", label: "Bolo" },
+  { emoji: "✈️", label: "Avião" },
+  { emoji: "🏖️", label: "Praia" },
+  { emoji: "🎉", label: "Festa" },
+  { emoji: "🎈", label: "Balão" },
+  { emoji: "🌴", label: "Férias" },
+  { emoji: "🎓", label: "Formatura" },
+  { emoji: "🏡", label: "Casa" },
+  { emoji: "🤒", label: "Doente" },
+  { emoji: "⚽", label: "Esporte" },
+  { emoji: "🎭", label: "Show/Teatro" },
+];
 
 /** Cor de exibição de um evento no calendário:
  *  - Se há funcionário envolvido → cor do funcionário

@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { EVENTO_TIPO_LABEL } from "@/lib/types";
+import { EMOJIS_EVENTO, EVENTO_TIPO_LABEL } from "@/lib/types";
 import type { EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
 
 const CORES_FAMILIA = [
@@ -67,6 +67,7 @@ export function EventoModal({
   const [notas, setNotas] = useState("");
   const [pessoasSel, setPessoasSel] = useState<string[]>([]);
   const [corEvento, setCorEvento] = useState<string>(CORES_FAMILIA[0]);
+  const [emojiSel, setEmojiSel] = useState<string | null>(null);
 
   // IDs dos funcionários para detectar quando a cor vem deles
   const funcionarios = pessoas.filter((p) => p.tipo === "funcionario");
@@ -85,6 +86,7 @@ export function EventoModal({
       setNotas(evento.notas ?? "");
       setPessoasSel(evento.pessoas.map((p) => p.id));
       setCorEvento(evento.cor_hex ?? CORES_FAMILIA[0]);
+      setEmojiSel(evento.emoji ?? null);
     } else {
       setTitulo("");
       setTipo("outro");
@@ -93,6 +95,7 @@ export function EventoModal({
       setNotas("");
       setPessoasSel([]);
       setCorEvento(CORES_FAMILIA[0]);
+      setEmojiSel(null);
     }
   }, [evento, defaultDate, open]);
 
@@ -115,6 +118,7 @@ export function EventoModal({
             data_fim: dataFim,
             notas: notas || null,
             cor_hex: corFinal,
+            emoji: emojiSel,
             pessoa_ids: pessoasSel,
           });
         } else {
@@ -126,6 +130,7 @@ export function EventoModal({
             dia_todo: true,
             notas: notas || null,
             cor_hex: corFinal,
+            emoji: emojiSel,
             pessoa_ids: pessoasSel,
           });
         }
@@ -308,6 +313,38 @@ export function EventoModal({
               </div>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label>Emoji (opcional)</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {EMOJIS_EVENTO.map(({ emoji, label }) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  title={label}
+                  onClick={() =>
+                    setEmojiSel((prev) => (prev === emoji ? null : emoji))
+                  }
+                  className={`flex size-9 items-center justify-center rounded-lg border text-xl transition-colors ${
+                    emojiSel === emoji
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            {emojiSel && (
+              <button
+                type="button"
+                onClick={() => setEmojiSel(null)}
+                className="text-muted-foreground text-xs hover:underline"
+              >
+                Remover emoji
+              </button>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="notas">Notas (opcional)</Label>

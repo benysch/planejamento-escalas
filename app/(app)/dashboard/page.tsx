@@ -105,7 +105,10 @@ function EventoItem({ evento }: { evento: EventoComPessoas }) {
         style={{ backgroundColor: evento.cor_hex ?? "#6366f1" }}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-snug">{evento.titulo}</p>
+        <p className="text-sm font-medium leading-snug">
+          {evento.emoji && <span className="mr-1">{evento.emoji}</span>}
+          {evento.titulo}
+        </p>
         <p className="text-muted-foreground text-xs">
           {isSingleDay
             ? formatDate(evento.data_inicio)

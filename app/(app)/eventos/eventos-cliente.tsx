@@ -99,7 +99,10 @@ export function EventosCliente({ eventos, pessoas }: Props) {
                   }}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{ev.titulo}</p>
+                  <p className="text-sm font-medium">
+                    {ev.emoji && <span className="mr-1">{ev.emoji}</span>}
+                    {ev.titulo}
+                  </p>
                   <p className="text-muted-foreground text-xs mt-0.5">
                     {isSingleDay
                       ? formatDate(ev.data_inicio)

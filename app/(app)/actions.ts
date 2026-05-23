@@ -52,6 +52,7 @@ export async function createEvento(data: {
   dia_todo: boolean;
   notas?: string | null;
   cor_hex?: string | null;
+  emoji?: string | null;
   pessoa_ids?: string[];
 }) {
   const sb = getSupabase();
@@ -89,6 +90,7 @@ export async function updateEvento(
     dia_todo?: boolean;
     notas?: string | null;
     cor_hex?: string | null;
+    emoji?: string | null;
     pessoa_ids?: string[];
   },
 ) {

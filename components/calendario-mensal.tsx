@@ -150,6 +150,7 @@ export function CalendarioMensal({
                     }}
                     title={ev.titulo}
                   >
+                    {ev.emoji && <span className="mr-0.5">{ev.emoji}</span>}
                     {ev.titulo}
                   </div>
                 ))}
