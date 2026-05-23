@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "react-day-picker/src/style.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -127,4 +128,62 @@
   html {
     @apply font-sans;
   }
+}
+
+/* react-day-picker — theme integration */
+.rdp-root {
+  --rdp-accent-color: var(--primary);
+  --rdp-accent-background-color: var(--muted);
+  --rdp-day-height: 36px;
+  --rdp-day-width: 36px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+  --rdp-day_button-border: none;
+  --rdp-day_button-border-radius: calc(var(--radius) - 2px);
+  --rdp-today-color: var(--primary);
+  --rdp-nav_button-height: 28px;
+  --rdp-nav_button-width: 28px;
+  --rdp-nav-height: 2rem;
+  --rdp-selected-border: none;
+}
+
+.rdp-day_button:hover:not(:disabled) {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.rdp-selected .rdp-day_button,
+.rdp-selected .rdp-day_button:hover {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+}
+
+.rdp-button_previous,
+.rdp-button_next {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background-color: var(--background);
+  color: var(--muted-foreground);
+}
+
+.rdp-button_previous:hover:not(:disabled),
+.rdp-button_next:hover:not(:disabled) {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.rdp-chevron {
+  fill: currentColor;
+}
+
+.rdp-caption_label {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.rdp-weekday {
+  opacity: 1;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
 }

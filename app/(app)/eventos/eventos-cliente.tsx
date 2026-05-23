@@ -117,9 +117,14 @@ export function EventosCliente({ eventos, pessoas }: Props) {
                     )}
                   </p>
                 </div>
-                <Badge variant="secondary" className="shrink-0 text-xs">
-                  {EVENTO_TIPO_LABEL[ev.tipo]}
-                </Badge>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge variant="secondary" className="text-xs">
+                    {EVENTO_TIPO_LABEL[ev.tipo]}
+                  </Badge>
+                  {ev.recorrente_anual && (
+                    <span className="text-muted-foreground text-xs">↻ anual</span>
+                  )}
+                </div>
               </div>
             );
           })}

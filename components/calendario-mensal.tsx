@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getEventoCor, MESES } from "@/lib/types";
 import type { EventoComPessoas } from "@/lib/types";
@@ -38,6 +37,8 @@ export function CalendarioMensal({
   onEventoClick,
 }: Props) {
   const cells = useMemo(() => diasDoMes(ano, mes), [ano, mes]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerAno, setPickerAno] = useState(ano);
 
   const eventosPorDia = useMemo(() => {
     const map = new Map<string, EventoComPessoas[]>();
@@ -72,29 +73,85 @@ export function CalendarioMensal({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
-          {MESES[mes - 1]} {ano}
-        </h2>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => navMes(-1)}>
-            <ChevronLeft className="size-4" />
-          </Button>
+      {pickerOpen ? (
+        <div className="space-y-2 rounded-lg border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPickerAno((y) => y - 1)}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-base font-semibold">{pickerAno}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPickerAno((y) => y + 1)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-4 gap-1">
+            {MESES.map((nome, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  onMesChange(pickerAno, idx + 1);
+                  setPickerOpen(false);
+                }}
+                className={`rounded py-1.5 text-sm font-medium transition-colors ${
+                  pickerAno === ano && idx + 1 === mes
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
+                }`}
+              >
+                {nome.slice(0, 3)}
+              </button>
+            ))}
+          </div>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              const n = new Date();
-              onMesChange(n.getFullYear(), n.getMonth() + 1);
-            }}
+            className="w-full text-xs text-muted-foreground"
+            onClick={() => setPickerOpen(false)}
           >
-            Hoje
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => navMes(1)}>
-            <ChevronRight className="size-4" />
+            Cancelar
           </Button>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              setPickerAno(ano);
+              setPickerOpen(true);
+            }}
+            className="text-lg font-semibold hover:text-primary transition-colors"
+          >
+            {MESES[mes - 1]} {ano}
+          </button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => navMes(-1)}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const n = new Date();
+                onMesChange(n.getFullYear(), n.getMonth() + 1);
+              }}
+            >
+              Hoje
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navMes(1)}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-px rounded-lg border bg-border overflow-hidden text-sm">
         {DIAS_SEMANA.map((d) => (
@@ -142,6 +199,9 @@ export function CalendarioMensal({
                     <span className="text-lg leading-none">{travado.emoji}</span>
                   )}
                   <span className="text-center text-xs font-medium text-white leading-tight line-clamp-2">
+                    {travado.recorrente_anual && (
+                      <span className="opacity-70">↻ </span>
+                    )}
                     {travado.titulo}
                   </span>
                 </div>
@@ -174,7 +234,7 @@ export function CalendarioMensal({
                 {evsDia.slice(0, 3).map((ev) => (
                   <div
                     key={ev.id}
-                    className="truncate rounded px-1 py-0.5 text-xs font-medium text-white cursor-pointer"
+                    className="flex items-center gap-0.5 truncate rounded px-1 py-0.5 text-xs font-medium text-white cursor-pointer"
                     style={{ backgroundColor: getEventoCor(ev) }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -182,8 +242,11 @@ export function CalendarioMensal({
                     }}
                     title={ev.titulo}
                   >
-                    {ev.emoji && <span className="mr-0.5">{ev.emoji}</span>}
-                    {ev.titulo}
+                    {ev.emoji && <span className="shrink-0">{ev.emoji}</span>}
+                    {ev.recorrente_anual && (
+                      <span className="shrink-0 opacity-70">↻</span>
+                    )}
+                    <span className="truncate">{ev.titulo}</span>
                   </div>
                 ))}
                 {evsDia.length > 3 && (

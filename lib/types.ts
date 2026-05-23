@@ -41,6 +41,7 @@ export type Evento = {
   cor_hex: string | null;
   emoji: string | null;
   trava_agenda: boolean;
+  recorrente_anual: boolean;
   criado_em: string;
 };
 

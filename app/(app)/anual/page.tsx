@@ -7,31 +7,61 @@ import {
 } from "@/lib/types";
 import type { EventoComPessoas, Pessoa } from "@/lib/types";
 
+function ajustarAno(dateStr: string, ano: number): string {
+  return `${ano}${dateStr.slice(4)}`;
+}
+
 async function getData(ano: number) {
   const sb = getSupabase();
-  const [{ data: eventos }, { data: pessoas }] = await Promise.all([
-    sb
-      .from("pe_eventos")
-      .select("*, pe_evento_pessoas(pessoa_id)")
-      .gte("data_fim", `${ano}-01-01`)
-      .lte("data_inicio", `${ano}-12-31`)
-      .order("data_inicio"),
-    sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
-  ]);
+  const [{ data: eventos }, { data: recorrentes }, { data: pessoas }] =
+    await Promise.all([
+      sb
+        .from("pe_eventos")
+        .select("*, pe_evento_pessoas(pessoa_id)")
+        .eq("recorrente_anual", false)
+        .gte("data_fim", `${ano}-01-01`)
+        .lte("data_inicio", `${ano}-12-31`)
+        .order("data_inicio"),
+      sb
+        .from("pe_eventos")
+        .select("*, pe_evento_pessoas(pessoa_id)")
+        .eq("recorrente_anual", true)
+        .order("data_inicio"),
+      sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
+    ]);
 
   const pessoaMap = new Map<string, Pessoa>(
     (pessoas ?? []).map((p) => [p.id, p]),
   );
 
-  const eventosEnriquecidos: EventoComPessoas[] = (eventos ?? []).map((ev) => {
-    const { pe_evento_pessoas: links = [], ...resto } = ev;
+  function enrich(ev: Record<string, unknown>): EventoComPessoas {
+    const { pe_evento_pessoas: links = [], ...resto } = ev as {
+      pe_evento_pessoas?: { pessoa_id: string }[];
+      [k: string]: unknown;
+    };
     return {
       ...(resto as EventoComPessoas),
-      pessoas: links
-        .map((l: { pessoa_id: string }) => pessoaMap.get(l.pessoa_id))
+      pessoas: (links as { pessoa_id: string }[])
+        .map((l) => pessoaMap.get(l.pessoa_id))
         .filter(Boolean) as Pessoa[],
     };
-  });
+  }
+
+  const recorrentesAjustados = (recorrentes ?? [])
+    .map((ev) => ({
+      ...ev,
+      data_inicio: ajustarAno(ev.data_inicio, ano),
+      data_fim: ajustarAno(ev.data_fim, ano),
+    }))
+    .filter(
+      (ev) =>
+        ev.data_inicio <= `${ano}-12-31` && ev.data_fim >= `${ano}-01-01`,
+    );
+
+  const eventosEnriquecidos: EventoComPessoas[] = [
+    ...(eventos ?? []),
+    ...recorrentesAjustados,
+  ].map((ev) => enrich(ev as Record<string, unknown>));
 
   return eventosEnriquecidos;
 }

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EMOJIS_EVENTO, EVENTO_TIPO_LABEL } from "@/lib/types";
 import type { EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
 
@@ -69,6 +70,7 @@ export function EventoModal({
   const [corEvento, setCorEvento] = useState<string>(CORES_FAMILIA[0]);
   const [emojiSel, setEmojiSel] = useState<string | null>(null);
   const [travaAgenda, setTravaAgenda] = useState(false);
+  const [recorrenteAnual, setRecorrenteAnual] = useState(false);
 
   // IDs dos funcionários para detectar quando a cor vem deles
   const funcionarios = pessoas.filter((p) => p.tipo === "funcionario");
@@ -89,6 +91,7 @@ export function EventoModal({
       setCorEvento(evento.cor_hex ?? CORES_FAMILIA[0]);
       setEmojiSel(evento.emoji ?? null);
       setTravaAgenda(evento.trava_agenda ?? false);
+      setRecorrenteAnual(evento.recorrente_anual ?? false);
     } else {
       setTitulo("");
       setTipo("outro");
@@ -99,6 +102,7 @@ export function EventoModal({
       setCorEvento(CORES_FAMILIA[0]);
       setEmojiSel(null);
       setTravaAgenda(false);
+      setRecorrenteAnual(false);
     }
   }, [evento, defaultDate, open]);
 
@@ -123,6 +127,7 @@ export function EventoModal({
             cor_hex: corFinal,
             emoji: emojiSel,
             trava_agenda: travaAgenda,
+            recorrente_anual: recorrenteAnual,
             pessoa_ids: pessoasSel,
           });
         } else {
@@ -136,6 +141,7 @@ export function EventoModal({
             cor_hex: corFinal,
             emoji: emojiSel,
             trava_agenda: travaAgenda,
+            recorrente_anual: recorrenteAnual,
             pessoa_ids: pessoasSel,
           });
         }
@@ -202,25 +208,21 @@ export function EventoModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="data_inicio">Início</Label>
-              <Input
-                id="data_inicio"
-                type="date"
+              <Label>Início</Label>
+              <DatePickerInput
                 value={dataInicio}
-                onChange={(e) => {
-                  setDataInicio(e.target.value);
-                  if (e.target.value > dataFim) setDataFim(e.target.value);
+                onChange={(d) => {
+                  setDataInicio(d);
+                  if (d > dataFim) setDataFim(d);
                 }}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="data_fim">Fim</Label>
-              <Input
-                id="data_fim"
-                type="date"
+              <Label>Fim</Label>
+              <DatePickerInput
                 value={dataFim}
                 min={dataInicio}
-                onChange={(e) => setDataFim(e.target.value)}
+                onChange={setDataFim}
               />
             </div>
           </div>
@@ -260,6 +262,45 @@ export function EventoModal({
               <p className="text-sm font-medium">Travar agenda</p>
               <p className="text-muted-foreground text-xs">
                 Preenche a célula inteira do dia com a cor deste evento
+              </p>
+            </div>
+          </button>
+
+          {/* Recorrente anual */}
+          <button
+            type="button"
+            onClick={() => setRecorrenteAnual((v) => !v)}
+            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              recorrenteAnual
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-muted/50"
+            }`}
+          >
+            <div
+              className={`flex size-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                recorrenteAnual
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground"
+              }`}
+            >
+              {recorrenteAnual && (
+                <svg
+                  viewBox="0 0 12 12"
+                  className="size-3 text-primary-foreground"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="2,6 5,9 10,3" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium">Recorrente anual</p>
+              <p className="text-muted-foreground text-xs">
+                Repete todo ano nesta data (ex: aniversários)
               </p>
             </div>
           </button>

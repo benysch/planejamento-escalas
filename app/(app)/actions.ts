@@ -54,6 +54,7 @@ export async function createEvento(data: {
   cor_hex?: string | null;
   emoji?: string | null;
   trava_agenda?: boolean;
+  recorrente_anual?: boolean;
   pessoa_ids?: string[];
 }) {
   const sb = getSupabase();
@@ -93,6 +94,7 @@ export async function updateEvento(
     cor_hex?: string | null;
     emoji?: string | null;
     trava_agenda?: boolean;
+    recorrente_anual?: boolean;
     pessoa_ids?: string[];
   },
 ) {
