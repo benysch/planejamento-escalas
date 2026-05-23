@@ -40,6 +40,7 @@ export type Evento = {
   notas: string | null;
   cor_hex: string | null;
   emoji: string | null;
+  trava_agenda: boolean;
   criado_em: string;
 };
 

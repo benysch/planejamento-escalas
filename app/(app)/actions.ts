@@ -53,6 +53,7 @@ export async function createEvento(data: {
   notas?: string | null;
   cor_hex?: string | null;
   emoji?: string | null;
+  trava_agenda?: boolean;
   pessoa_ids?: string[];
 }) {
   const sb = getSupabase();
@@ -91,6 +92,7 @@ export async function updateEvento(
     notas?: string | null;
     cor_hex?: string | null;
     emoji?: string | null;
+    trava_agenda?: boolean;
     pessoa_ids?: string[];
   },
 ) {

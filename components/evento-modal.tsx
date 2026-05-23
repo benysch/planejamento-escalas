@@ -68,6 +68,7 @@ export function EventoModal({
   const [pessoasSel, setPessoasSel] = useState<string[]>([]);
   const [corEvento, setCorEvento] = useState<string>(CORES_FAMILIA[0]);
   const [emojiSel, setEmojiSel] = useState<string | null>(null);
+  const [travaAgenda, setTravaAgenda] = useState(false);
 
   // IDs dos funcionários para detectar quando a cor vem deles
   const funcionarios = pessoas.filter((p) => p.tipo === "funcionario");
@@ -87,6 +88,7 @@ export function EventoModal({
       setPessoasSel(evento.pessoas.map((p) => p.id));
       setCorEvento(evento.cor_hex ?? CORES_FAMILIA[0]);
       setEmojiSel(evento.emoji ?? null);
+      setTravaAgenda(evento.trava_agenda ?? false);
     } else {
       setTitulo("");
       setTipo("outro");
@@ -96,6 +98,7 @@ export function EventoModal({
       setPessoasSel([]);
       setCorEvento(CORES_FAMILIA[0]);
       setEmojiSel(null);
+      setTravaAgenda(false);
     }
   }, [evento, defaultDate, open]);
 
@@ -119,6 +122,7 @@ export function EventoModal({
             notas: notas || null,
             cor_hex: corFinal,
             emoji: emojiSel,
+            trava_agenda: travaAgenda,
             pessoa_ids: pessoasSel,
           });
         } else {
@@ -131,6 +135,7 @@ export function EventoModal({
             notas: notas || null,
             cor_hex: corFinal,
             emoji: emojiSel,
+            trava_agenda: travaAgenda,
             pessoa_ids: pessoasSel,
           });
         }
@@ -219,6 +224,45 @@ export function EventoModal({
               />
             </div>
           </div>
+
+          {/* Travar agenda */}
+          <button
+            type="button"
+            onClick={() => setTravaAgenda((v) => !v)}
+            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              travaAgenda
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-muted/50"
+            }`}
+          >
+            <div
+              className={`flex size-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                travaAgenda
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground"
+              }`}
+            >
+              {travaAgenda && (
+                <svg
+                  viewBox="0 0 12 12"
+                  className="size-3 text-primary-foreground"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="2,6 5,9 10,3" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium">Travar agenda</p>
+              <p className="text-muted-foreground text-xs">
+                Preenche a célula inteira do dia com a cor deste evento
+              </p>
+            </div>
+          </button>
 
           {pessoas.length > 0 && (
             <div className="space-y-2">

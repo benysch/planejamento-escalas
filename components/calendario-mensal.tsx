@@ -114,7 +114,42 @@ export function CalendarioMensal({
           const dateStr = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
           const evsDia = eventosPorDia.get(dateStr) ?? [];
           const isHoje = dateStr === hoje;
+          const travado = evsDia.find((e) => e.trava_agenda) ?? null;
+          const corTrava = travado ? getEventoCor(travado) : null;
 
+          // Célula travada: fundo sólido com a cor do evento
+          if (travado && corTrava) {
+            return (
+              <div
+                key={idx}
+                className="min-h-[80px] p-1 cursor-pointer transition-opacity hover:opacity-90"
+                style={{ backgroundColor: corTrava }}
+                onClick={() => onDiaClick?.(dateStr)}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white/90">
+                    {dia}
+                  </span>
+                </div>
+                <div
+                  className="mt-1 flex flex-col items-center justify-center gap-0.5 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEventoClick?.(travado);
+                  }}
+                >
+                  {travado.emoji && (
+                    <span className="text-lg leading-none">{travado.emoji}</span>
+                  )}
+                  <span className="text-center text-xs font-medium text-white leading-tight line-clamp-2">
+                    {travado.titulo}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          // Célula normal
           return (
             <div
               key={idx}
@@ -140,10 +175,7 @@ export function CalendarioMensal({
                   <div
                     key={ev.id}
                     className="truncate rounded px-1 py-0.5 text-xs font-medium text-white cursor-pointer"
-                    style={{
-                      backgroundColor:
-                        getEventoCor(ev),
-                    }}
+                    style={{ backgroundColor: getEventoCor(ev) }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEventoClick?.(ev);
