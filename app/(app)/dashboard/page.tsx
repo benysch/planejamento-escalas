@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarCheck, User2, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck, Clock, ListChecks, User2, Users } from "lucide-react";
 
 import { getSupabase } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,48 @@ import {
 } from "@/components/ui/card";
 import { MESES } from "@/lib/types";
 import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
+
+// ─── Rotinas semanais ───────────────────────────────────────────────────────
+
+type RotinaItem = { texto: string; hora?: string };
+
+const ROTINAS: Record<number, RotinaItem[]> = {
+  1: [
+    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
+    { texto: "Ilan — Hebraica (Brincar livre)", hora: "8:30 – 14:00" },
+    { texto: "Lia — Ballet", hora: "15:15 – 16:00" },
+  ],
+  2: [
+    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
+    { texto: "Ilan — Natação", hora: "8:45 – 9:20" },
+    { texto: "Lia e Ilan em casa" },
+  ],
+  3: [
+    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
+    { texto: "Ilan — Clube Jacaré / Musicalização", hora: "15:00 – 15:40" },
+    { texto: "Lia — Ballet", hora: "15:15 – 16:00" },
+  ],
+  4: [
+    { texto: "Faxineira em casa" },
+    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
+    { texto: "Ilan — Hebraica (Brincar livre)", hora: "8:30 – 14:00" },
+    { texto: "Tia Syl pegar Lia na escola" },
+    { texto: "Lia e Ilan em casa — tarde" },
+  ],
+  5: [
+    { texto: "Lia — Escola", hora: "7:45 – 14:45" },
+    { texto: "Ilan em casa" },
+    { texto: "Lia — Natação (Muri pegar)", hora: "15:15 – 16:00" },
+    { texto: "Jantar nos Avós (Abra e Arlete)" },
+  ],
+};
+
+const DIAS_SEMANA = [
+  "Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira",
+  "Quinta-feira", "Sexta-feira", "Sábado",
+];
+
+// ─── Data ────────────────────────────────────────────────────────────────────
 
 async function getDashboardData() {
   const sb = getSupabase();
@@ -139,6 +181,13 @@ export default async function DashboardPage() {
   const [y, m, d] = today.split("-");
   const dataFormatada = `${d} de ${MESES[parseInt(m) - 1]} de ${y}`;
 
+  const diaSemana = new Date(`${today}T12:00:00`).getDay();
+  const nomeDia = DIAS_SEMANA[diaSemana];
+  const rotinaHoje = ROTINAS[diaSemana] ?? null;
+  const hasFeriado = eventosHoje.some((e) => e.tipo === "feriado");
+  const hasViagemFamilia = eventosHoje.some((e) => e.tipo === "viagem_familia");
+  const rotinaSuspensa = hasFeriado || hasViagemFamilia;
+
   return (
     <div className="space-y-6">
       <div>
@@ -162,6 +211,45 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </div>
+      )}
+
+      {rotinaHoje && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ListChecks className="size-4" />
+              Rotina de hoje — {nomeDia}
+            </CardTitle>
+            {rotinaSuspensa && (
+              <div className="flex items-center gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
+                <AlertTriangle className="size-3.5 shrink-0" />
+                <span className="text-xs font-medium">
+                  Rotina possivelmente alterada —{" "}
+                  {hasFeriado ? "feriado" : "viagem família"} hoje
+                </span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {rotinaHoje.map((item, i) => (
+                <li key={i} className="flex items-center gap-3 text-sm">
+                  {item.hora ? (
+                    <span className="flex items-center gap-1 shrink-0 text-xs font-medium text-muted-foreground w-24">
+                      <Clock className="size-3" />
+                      {item.hora}
+                    </span>
+                  ) : (
+                    <span className="w-24 shrink-0" />
+                  )}
+                  <span className={rotinaSuspensa ? "text-muted-foreground line-through" : ""}>
+                    {item.texto}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
