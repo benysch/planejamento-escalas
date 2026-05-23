@@ -105,6 +105,7 @@ export const EMOJIS_EVENTO = [
   { emoji: "🎓", label: "Formatura" },
   { emoji: "🏡", label: "Casa" },
   { emoji: "🤒", label: "Doente" },
+  { emoji: "🩺", label: "Médico" },
   { emoji: "⚽", label: "Esporte" },
   { emoji: "🎭", label: "Show/Teatro" },
 ];
