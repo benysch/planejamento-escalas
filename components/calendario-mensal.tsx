@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EVENTO_TIPO_COR, MESES } from "@/lib/types";
+import { getEventoCor, MESES } from "@/lib/types";
 import type { EventoComPessoas } from "@/lib/types";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -142,7 +142,7 @@ export function CalendarioMensal({
                     className="truncate rounded px-1 py-0.5 text-xs font-medium text-white cursor-pointer"
                     style={{
                       backgroundColor:
-                        ev.cor_hex ?? EVENTO_TIPO_COR[ev.tipo] ?? "#6366f1",
+                        getEventoCor(ev),
                     }}
                     onClick={(e) => {
                       e.stopPropagation();

@@ -23,7 +23,20 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { EVENTO_TIPO_LABEL } from "@/lib/types";
-import type { Evento, EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
+import type { EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
+
+const CORES_FAMILIA = [
+  "#3b82f6", // azul
+  "#8b5cf6", // roxo
+  "#ec4899", // rosa
+  "#f59e0b", // âmbar
+  "#f97316", // laranja
+  "#ef4444", // vermelho
+  "#10b981", // verde
+  "#14b8a6", // teal
+  "#6366f1", // índigo
+  "#6b7280", // cinza
+];
 
 type Props = {
   open: boolean;
@@ -53,6 +66,15 @@ export function EventoModal({
   );
   const [notas, setNotas] = useState("");
   const [pessoasSel, setPessoasSel] = useState<string[]>([]);
+  const [corEvento, setCorEvento] = useState<string>(CORES_FAMILIA[0]);
+
+  // IDs dos funcionários para detectar quando a cor vem deles
+  const funcionarios = pessoas.filter((p) => p.tipo === "funcionario");
+  const familiares = pessoas.filter((p) => p.tipo === "familiar");
+  const funcionariosSel = pessoasSel.filter((id) =>
+    funcionarios.some((f) => f.id === id),
+  );
+  const temFuncionario = funcionariosSel.length > 0;
 
   useEffect(() => {
     if (evento) {
@@ -62,6 +84,7 @@ export function EventoModal({
       setDataFim(evento.data_fim);
       setNotas(evento.notas ?? "");
       setPessoasSel(evento.pessoas.map((p) => p.id));
+      setCorEvento(evento.cor_hex ?? CORES_FAMILIA[0]);
     } else {
       setTitulo("");
       setTipo("outro");
@@ -69,6 +92,7 @@ export function EventoModal({
       setDataFim(defaultDate ?? new Date().toISOString().split("T")[0]);
       setNotas("");
       setPessoasSel([]);
+      setCorEvento(CORES_FAMILIA[0]);
     }
   }, [evento, defaultDate, open]);
 
@@ -82,6 +106,7 @@ export function EventoModal({
     if (!titulo.trim()) return;
     startTransition(async () => {
       try {
+        const corFinal = temFuncionario ? null : corEvento;
         if (evento) {
           await updateEvento(evento.id, {
             titulo,
@@ -89,6 +114,7 @@ export function EventoModal({
             data_inicio: dataInicio,
             data_fim: dataFim,
             notas: notas || null,
+            cor_hex: corFinal,
             pessoa_ids: pessoasSel,
           });
         } else {
@@ -99,6 +125,7 @@ export function EventoModal({
             data_fim: dataFim,
             dia_todo: true,
             notas: notas || null,
+            cor_hex: corFinal,
             pessoa_ids: pessoasSel,
           });
         }
@@ -189,22 +216,94 @@ export function EventoModal({
           </div>
 
           {pessoas.length > 0 && (
+            <div className="space-y-2">
+              {familiares.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>Família</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {familiares.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => togglePessoa(p.id)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          pessoasSel.includes(p.id)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        <div
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: p.cor_hex }}
+                        />
+                        {p.nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {funcionarios.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>Funcionários</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {funcionarios.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => togglePessoa(p.id)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          pessoasSel.includes(p.id)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        <div
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: p.cor_hex }}
+                        />
+                        {p.nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cor do evento: só para eventos sem funcionários */}
+          {temFuncionario ? (
+            <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              <div className="flex gap-1">
+                {funcionariosSel.map((id) => {
+                  const f = funcionarios.find((x) => x.id === id);
+                  return f ? (
+                    <div
+                      key={id}
+                      className="size-3 rounded-full border border-white/50"
+                      style={{ backgroundColor: f.cor_hex }}
+                    />
+                  ) : null;
+                })}
+              </div>
+              Cor do calendário vem do(s) funcionário(s) selecionado(s).
+            </div>
+          ) : (
             <div className="space-y-1.5">
-              <Label>Pessoas envolvidas</Label>
+              <Label>Cor no calendário</Label>
               <div className="flex flex-wrap gap-2">
-                {pessoas.map((p) => (
+                {CORES_FAMILIA.map((cor) => (
                   <button
-                    key={p.id}
+                    key={cor}
                     type="button"
-                    onClick={() => togglePessoa(p.id)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                      pessoasSel.includes(p.id)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background hover:bg-muted"
+                    onClick={() => setCorEvento(cor)}
+                    className={`size-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                      corEvento === cor
+                        ? "border-foreground scale-110"
+                        : "border-transparent"
                     }`}
-                  >
-                    {p.nome}
-                  </button>
+                    style={{ backgroundColor: cor }}
+                  />
                 ))}
               </div>
             </div>

@@ -85,11 +85,23 @@ export const CARGO_LABEL: Record<PessoaCargo, string> = {
   adulto: "Adulto",
   crianca: "Criança",
   baba: "Babá",
-  diarista: "Diarista",
+  diarista: "Funcionária",
   faxineira: "Faxineira",
   motorista: "Motorista",
   outro: "Outro",
 };
+
+/** Cor de exibição de um evento no calendário:
+ *  - Se há funcionário envolvido → cor do funcionário
+ *  - Senão → cor escolhida no evento (cor_hex)
+ *  - Fallback → cor por tipo
+ */
+export function getEventoCor(evento: EventoComPessoas): string {
+  const func = evento.pessoas.find((p) => p.tipo === "funcionario");
+  if (func) return func.cor_hex;
+  if (evento.cor_hex) return evento.cor_hex;
+  return EVENTO_TIPO_COR[evento.tipo] ?? "#6366f1";
+}
 
 export const MESES = [
   "Janeiro",

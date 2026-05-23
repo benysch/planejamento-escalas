@@ -3,6 +3,7 @@ import {
   EVENTO_TIPO_COR,
   EVENTO_TIPO_LABEL,
   MESES,
+  getEventoCor,
 } from "@/lib/types";
 import type { EventoComPessoas, Pessoa } from "@/lib/types";
 
@@ -52,7 +53,7 @@ function miniCalendario(ano: number, mes: number, eventos: EventoComPessoas[]) {
       if (!eventosDias.has(k)) eventosDias.set(k, []);
       eventosDias
         .get(k)!
-        .push(ev.cor_hex ?? EVENTO_TIPO_COR[ev.tipo] ?? "#6366f1");
+        .push(getEventoCor(ev));
       cur.setDate(cur.getDate() + 1);
     }
   }

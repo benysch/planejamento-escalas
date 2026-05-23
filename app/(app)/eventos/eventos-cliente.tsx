@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { EventoModal } from "@/components/evento-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EVENTO_TIPO_COR, EVENTO_TIPO_LABEL } from "@/lib/types";
+import { getEventoCor, EVENTO_TIPO_LABEL } from "@/lib/types";
 import type { EventoComPessoas, EventoTipo, Pessoa } from "@/lib/types";
 
 type Props = {
@@ -95,7 +95,7 @@ export function EventosCliente({ eventos, pessoas }: Props) {
                   className="mt-1.5 size-2.5 shrink-0 rounded-full"
                   style={{
                     backgroundColor:
-                      ev.cor_hex ?? EVENTO_TIPO_COR[ev.tipo] ?? "#6366f1",
+                      getEventoCor(ev),
                   }}
                 />
                 <div className="min-w-0 flex-1">
