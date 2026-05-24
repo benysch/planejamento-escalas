@@ -22,22 +22,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { CORES_PARES } from "@/lib/cores";
 import { EMOJIS_EVENTO } from "@/lib/types";
 import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
-const CORES_FAMILIA = [
-  "#3b82f6", // azul
-  "#8b5cf6", // roxo
-  "#ec4899", // rosa
-  "#f59e0b", // âmbar
-  "#f97316", // laranja
-  "#ef4444", // vermelho
-  "#10b981", // verde
-  "#14b8a6", // teal
-  "#6366f1", // índigo
-  "#6b7280", // cinza
-];
+const COR_PADRAO = CORES_PARES[0].vivid;
 
 type Props = {
   open: boolean;
@@ -69,7 +60,7 @@ export function EventoModal({
   );
   const [notas, setNotas] = useState("");
   const [pessoasSel, setPessoasSel] = useState<string[]>([]);
-  const [corEvento, setCorEvento] = useState<string>(CORES_FAMILIA[0]);
+  const [corEvento, setCorEvento] = useState<string>(COR_PADRAO);
   const [emojiSel, setEmojiSel] = useState<string | null>(null);
   const [travaAgenda, setTravaAgenda] = useState(false);
   const [recorrenteAnual, setRecorrenteAnual] = useState(false);
@@ -90,7 +81,7 @@ export function EventoModal({
       setDataFim(evento.data_fim);
       setNotas(evento.notas ?? "");
       setPessoasSel(evento.pessoas.map((p) => p.id));
-      setCorEvento(evento.cor_hex ?? CORES_FAMILIA[0]);
+      setCorEvento(evento.cor_hex ?? COR_PADRAO);
       setEmojiSel(evento.emoji ?? null);
       setTravaAgenda(evento.trava_agenda ?? false);
       setRecorrenteAnual(evento.recorrente_anual ?? false);
@@ -101,7 +92,7 @@ export function EventoModal({
       setDataFim(defaultDate ?? new Date().toISOString().split("T")[0]);
       setNotas("");
       setPessoasSel([]);
-      setCorEvento(tipos[0]?.cor_hex ?? CORES_FAMILIA[0]);
+      setCorEvento(tipos[0]?.cor_hex ?? COR_PADRAO);
       setEmojiSel(null);
       setTravaAgenda(false);
       setRecorrenteAnual(false);
@@ -390,21 +381,7 @@ export function EventoModal({
           ) : (
             <div className="space-y-1.5">
               <Label>Cor no calendário</Label>
-              <div className="flex flex-wrap gap-2">
-                {CORES_FAMILIA.map((cor) => (
-                  <button
-                    key={cor}
-                    type="button"
-                    onClick={() => setCorEvento(cor)}
-                    className={`size-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                      corEvento === cor
-                        ? "border-foreground scale-110"
-                        : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: cor }}
-                  />
-                ))}
-              </div>
+              <ColorPicker value={corEvento} onChange={setCorEvento} />
             </div>
           )}
 

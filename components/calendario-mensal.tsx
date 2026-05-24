@@ -4,13 +4,15 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { isCorPastel } from "@/lib/cores";
 import { getEventoCor, MESES } from "@/lib/types";
-import type { EventoComPessoas } from "@/lib/types";
+import type { EventoComPessoas, TipoEvento } from "@/lib/types";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 type Props = {
   eventos: EventoComPessoas[];
+  tipos: TipoEvento[];
   ano: number;
   mes: number; // 1-12
   onMesChange: (ano: number, mes: number) => void;
@@ -30,6 +32,7 @@ function diasDoMes(ano: number, mes: number) {
 
 export function CalendarioMensal({
   eventos,
+  tipos,
   ano,
   mes,
   onMesChange,
@@ -37,6 +40,12 @@ export function CalendarioMensal({
   onEventoClick,
 }: Props) {
   const cells = useMemo(() => diasDoMes(ano, mes), [ano, mes]);
+
+  const ordemTipo = useMemo(() => {
+    const m = new Map<string, number>();
+    tipos.forEach((t) => m.set(t.slug, t.ordem));
+    return m;
+  }, [tipos]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerAno, setPickerAno] = useState(ano);
 
@@ -172,7 +181,7 @@ export function CalendarioMensal({
             return (
               <div
                 key={idx}
-                className={`min-h-[80px] ${isWeekend ? "cell-fds" : "bg-background"}`}
+                className={`min-h-[72px] ${isWeekend ? "cell-fds" : "bg-background"}`}
               />
             );
           }
@@ -184,6 +193,10 @@ export function CalendarioMensal({
           const corTrava = travado ? getEventoCor(travado) : null;
           const hasFeriado = evsDia.some((e) => e.tipo === "feriado");
           const isEspecial = isWeekend || hasFeriado;
+          const folguista = evsDia.find((e) => e.tipo === "baba_folguista") ?? null;
+          const evsChip = evsDia
+            .filter((e) => e.tipo !== "baba_folguista")
+            .sort((a, b) => (ordemTipo.get(a.tipo) ?? 999) - (ordemTipo.get(b.tipo) ?? 999));
 
           // Célula travada: fundo sólido com a cor do evento
           if (travado && corTrava) {
@@ -195,7 +208,7 @@ export function CalendarioMensal({
                 onClick={() => onDiaClick?.(dateStr)}
               >
                 <div className="flex items-center justify-between">
-                  <span className="flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white/90">
+                  <span className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${isCorPastel(corTrava) ? "text-black/70" : "text-white/90"}`}>
                     {dia}
                   </span>
                 </div>
@@ -209,7 +222,7 @@ export function CalendarioMensal({
                   {travado.emoji && (
                     <span className="text-lg leading-none">{travado.emoji}</span>
                   )}
-                  <span className="text-center text-xs font-medium text-white leading-tight line-clamp-2">
+                  <span className={`text-center text-xs font-medium leading-tight line-clamp-2 ${isCorPastel(corTrava) ? "text-black/80" : "text-white"}`}>
                     {travado.recorrente_anual && (
                       <span className="opacity-70">↻ </span>
                     )}
@@ -224,32 +237,47 @@ export function CalendarioMensal({
           return (
             <div
               key={idx}
-              className={`min-h-[80px] p-1 cursor-pointer transition-colors ${
+              className={`min-h-[72px] p-1 cursor-pointer transition-colors ${
                 isEspecial
                   ? "cell-fds"
                   : "bg-background hover:bg-muted/30"
               }`}
               onClick={() => onDiaClick?.(dateStr)}
             >
-              <div className="flex items-center justify-between">
-                <span
-                  className={`flex size-6 items-center justify-center rounded-full text-xs font-medium ${
-                    isHoje
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground"
-                  }`}
-                >
-                  {dia}
-                </span>
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 min-w-0">
+                  <span
+                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+                      isHoje
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground"
+                    }`}
+                  >
+                    {dia}
+                  </span>
+                  {folguista && (
+                    <span
+                      className="text-sm font-bold truncate cursor-pointer"
+                      style={{ color: getEventoCor(folguista) }}
+                      title={folguista.pessoas[0]?.nome ?? folguista.titulo}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventoClick?.(folguista);
+                      }}
+                    >
+                      {folguista.pessoas[0]?.nome ?? folguista.titulo}
+                    </span>
+                  )}
+                </div>
                 {onDiaClick && (
-                  <Plus className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                  <Plus className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
                 )}
               </div>
               <div className="mt-1 space-y-0.5">
-                {evsDia.slice(0, 3).map((ev) => (
+                {evsChip.map((ev) => (
                   <div
                     key={ev.id}
-                    className="flex items-center gap-0.5 truncate rounded px-1 py-0.5 text-xs font-medium text-white cursor-pointer"
+                    className={`flex items-center gap-0.5 truncate rounded px-1 py-0.5 text-xs font-medium cursor-pointer ${isCorPastel(getEventoCor(ev)) ? "text-black/80" : "text-white"}`}
                     style={{ backgroundColor: getEventoCor(ev) }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -264,11 +292,6 @@ export function CalendarioMensal({
                     <span className="truncate">{ev.titulo}</span>
                   </div>
                 ))}
-                {evsDia.length > 3 && (
-                  <div className="text-muted-foreground px-1 text-xs">
-                    +{evsDia.length - 3} mais
-                  </div>
-                )}
               </div>
             </div>
           );

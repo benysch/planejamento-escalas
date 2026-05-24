@@ -171,12 +171,18 @@ export async function updateTipoEvento(
 
 export async function deleteTipoEvento(id: string) {
   const sb = getSupabase();
-  const { error } = await sb
-    .from("pe_evento_tipos")
-    .delete()
-    .eq("id", id)
-    .eq("sistema", false);
+  const { error } = await sb.from("pe_evento_tipos").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
+export async function reordenarTipos(ids: string[]) {
+  const sb = getSupabase();
+  await Promise.all(
+    ids.map((id, i) =>
+      sb.from("pe_evento_tipos").update({ ordem: i + 1 }).eq("id", id),
+    ),
+  );
   revalidatePath("/", "layout");
 }
 
@@ -255,4 +261,272 @@ export async function upsertEscalaMensal(data: {
     .upsert(data, { onConflict: "funcionario_id,mes,ano" });
   if (error) throw new Error(error.message);
   revalidatePath("/funcionarios");
+}
+
+// ─── Configuração Financeira ────────────────────────────────────────────────
+
+export async function getConfigFinanceira() {
+  const sb = getSupabase();
+  const { data, error } = await sb.from("pe_config_financeira").select("*");
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function upsertConfigFinanceira(data: {
+  funcionario_id: string;
+  salario_base: number;
+  valor_vt_dia: number;
+}) {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("pe_config_financeira")
+    .upsert(data, { onConflict: "funcionario_id" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/configuracoes");
+}
+
+// ─── Pagamentos ─────────────────────────────────────────────────────────────
+
+export async function listPagamentos(mes: number, ano: number) {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("pe_pagamentos")
+    .select("*")
+    .eq("mes", mes)
+    .eq("ano", ano)
+    .order("despesa")
+    .order("tipo_pagamento");
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function upsertPagamento(data: {
+  id?: string;
+  mes: number;
+  ano: number;
+  despesa: string;
+  funcionario_id?: string | null;
+  tipo_pagamento: string;
+  valor: number;
+  observacao?: string | null;
+  pago?: boolean;
+  data_pagamento?: string | null;
+}) {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("pe_pagamentos")
+    .upsert(
+      { ...data, pago: data.pago ?? false },
+      { onConflict: "id" },
+    );
+  if (error) throw new Error(error.message);
+  revalidatePath("/pagamentos");
+}
+
+export async function deletePagamento(id: string) {
+  const sb = getSupabase();
+  const { error } = await sb.from("pe_pagamentos").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/pagamentos");
+}
+
+export async function marcarPago(
+  id: string,
+  pago: boolean,
+  dataPagamento?: string | null,
+) {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("pe_pagamentos")
+    .update({ pago, data_pagamento: dataPagamento ?? null })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/pagamentos");
+}
+
+// ─── Geração Automática de Pagamentos ───────────────────────────────────────
+
+export async function gerarPagamentosDoMes(mes: number, ano: number) {
+  const sb = getSupabase();
+
+  // 1. Get all funcionários, escala_dias, escala_mensal, config, eventos
+  const [
+    { data: funcionarios },
+    { data: escalaDias },
+    { data: escalaMensal },
+    { data: configFinanceira },
+    { data: eventos },
+  ] = await Promise.all([
+    sb.from("pe_pessoas").select("*").eq("tipo", "funcionario"),
+    sb
+      .from("pe_escala_dias")
+      .select("*")
+      .gte("data", `${ano}-${String(mes).padStart(2, "0")}-01`)
+      .lte("data", `${ano}-${String(mes).padStart(2, "0")}-31`),
+    sb
+      .from("pe_escala_mensal")
+      .select("*")
+      .eq("mes", mes)
+      .eq("ano", ano),
+    sb.from("pe_config_financeira").select("*"),
+    sb.from("pe_eventos").select("*"),
+  ]);
+
+  // 2. Build maps
+  const escalaDiasMap = new Map<string, Set<string>>();
+  (escalaDias || []).forEach((ed) => {
+    if (!escalaDiasMap.has(ed.funcionario_id)) {
+      escalaDiasMap.set(ed.funcionario_id, new Set());
+    }
+    escalaDiasMap.get(ed.funcionario_id)!.add(ed.data);
+  });
+
+  type EscalaMensalType = {
+    id: string;
+    funcionario_id: string;
+    mes: number;
+    ano: number;
+    dias_trabalhados: number;
+    dias_programados: number;
+    saldo_vt: number;
+    notas: string | null;
+  };
+
+  const escalaMensalMap = new Map<string, EscalaMensalType>();
+  (escalaMensal || []).forEach((em) => {
+    escalaMensalMap.set(em.funcionario_id, em);
+  });
+
+  type ConfigFinanceiraType = {
+    id: string;
+    funcionario_id: string;
+    salario_base: number;
+    valor_vt_dia: number;
+  };
+
+  const configMap = new Map<string, ConfigFinanceiraType>();
+  (configFinanceira || []).forEach((cfg) => {
+    configMap.set(cfg.funcionario_id, cfg);
+  });
+
+  // Get feriados for the month
+  const feriados = new Set<string>();
+  (eventos || []).forEach((ev) => {
+    if (ev.tipo === "feriado") {
+      const inicio = new Date(ev.data_inicio);
+      const fim = new Date(ev.data_fim);
+      for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split("T")[0];
+        feriados.add(dateStr);
+      }
+    }
+  });
+
+  // Count working days in the month (Mon-Fri, excluding feriados)
+  const diasUtil = [];
+  const firstDay = new Date(ano, mes - 1, 1);
+  const lastDay = new Date(ano, mes, 0);
+  for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay();
+    const dateStr = d.toISOString().split("T")[0];
+    if (dayOfWeek >= 1 && dayOfWeek <= 5 && !feriados.has(dateStr)) {
+      diasUtil.push(dateStr);
+    }
+  }
+  const totalDiasUteis = diasUtil.length;
+
+  // 3. Generate pagamentos for each funcionário
+  const pagamentosAInserir: any[] = [];
+
+  (funcionarios || []).forEach((func) => {
+    const diasTrabalhados = escalaDiasMap.get(func.id)?.size ?? 0;
+    const escalaMensalData = escalaMensalMap.get(func.id);
+    const configData = configMap.get(func.id);
+
+    if (!configData || diasTrabalhados === 0) return; // Skip if no config or no working days
+
+    const { salario_base, valor_vt_dia } = configData;
+    const saldoVt = escalaMensalData?.saldo_vt ?? 0;
+
+    // Salário
+    if (salario_base > 0) {
+      const salarioLiquido =
+        totalDiasUteis > 0
+          ? (salario_base * diasTrabalhados) / totalDiasUteis
+          : salario_base;
+      pagamentosAInserir.push({
+        mes,
+        ano,
+        despesa: func.nome,
+        funcionario_id: func.id,
+        tipo_pagamento: "salario",
+        valor: salarioLiquido,
+        observacao: `${diasTrabalhados} dias trabalhados`,
+        pago: false,
+      });
+    }
+
+    // VT
+    if (valor_vt_dia > 0 && saldoVt > 0) {
+      pagamentosAInserir.push({
+        mes,
+        ano,
+        despesa: func.nome,
+        funcionario_id: func.id,
+        tipo_pagamento: "vt",
+        valor: valor_vt_dia * saldoVt,
+        observacao: `${saldoVt} dias VT`,
+        pago: false,
+      });
+    }
+
+    // Folguistas: dias marcados na escala que caem em sábado/domingo/feriado
+    const folguistas = new Set<string>();
+    (escalaDiasMap.get(func.id) || []).forEach((data) => {
+      const d = new Date(data);
+      const dayOfWeek = d.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isFeriado = feriados.has(data);
+
+      if ((isWeekend || isFeriado) && saldoVt > 0) {
+        folguistas.add(data);
+      }
+    });
+
+    if (folguistas.size > 0) {
+      // Calculate folguista adicional (proportional bonus)
+      // Simplified: assume 10% of daily salary for each folguista day
+      const totalDiasEscala = escalaDiasMap.get(func.id)?.size ?? 1;
+      const diaAdicional =
+        totalDiasEscala > 0 ? salario_base / totalDiasEscala : 0;
+      const adicionalFolguista = diaAdicional * folguistas.size * 0.1;
+
+      if (adicionalFolguista > 0) {
+        pagamentosAInserir.push({
+          mes,
+          ano,
+          despesa: func.nome,
+          funcionario_id: func.id,
+          tipo_pagamento: "folguista",
+          valor: adicionalFolguista,
+          observacao: `${folguistas.size} dias (fim de semana/feriado)`,
+          pago: false,
+        });
+      }
+    }
+  });
+
+  // 4. Insert all pagamentos (skip if already exist for the month)
+  if (pagamentosAInserir.length > 0) {
+    const { error } = await sb
+      .from("pe_pagamentos")
+      .insert(pagamentosAInserir);
+    if (error) throw new Error(error.message);
+    revalidatePath("/pagamentos");
+  }
+
+  return {
+    success: true,
+    count: pagamentosAInserir.length,
+  };
 }

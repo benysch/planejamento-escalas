@@ -1,7 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Edit2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Edit2, GripVertical, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -11,6 +26,8 @@ import {
   createTipoEvento,
   updateTipoEvento,
   deleteTipoEvento,
+  reordenarTipos,
+  upsertConfigFinanceira,
 } from "@/app/(app)/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,8 +53,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { CARGO_LABEL } from "@/lib/types";
-import type { Pessoa, PessoaCargo, PessoaTipo, TipoEvento } from "@/lib/types";
+import type { Pessoa, PessoaCargo, PessoaTipo, TipoEvento, ConfigFinanceira } from "@/lib/types";
 
 const CARGOS_FAMILIAR: PessoaCargo[] = ["adulto", "crianca"];
 const CARGOS_FUNCIONARIO: PessoaCargo[] = [
@@ -48,20 +66,50 @@ const CARGOS_FUNCIONARIO: PessoaCargo[] = [
   "outro",
 ];
 
-const CORES = [
-  "#6366f1",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#f59e0b",
-  "#10b981",
-  "#14b8a6",
-  "#f97316",
-  "#ef4444",
-  "#6b7280",
-];
+// ─── Sortable row ────────────────────────────────────────────────────────────
 
-type Props = { pessoas: Pessoa[]; tipos: TipoEvento[] };
+function TipoRow({
+  tipo,
+  onEdit,
+}: {
+  tipo: TipoEvento;
+  onEdit: (t: TipoEvento) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: tipo.id });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex items-center gap-2 rounded-md border px-3 py-2 bg-background ${
+        isDragging ? "opacity-50 shadow-lg" : ""
+      }`}
+    >
+      <button
+        type="button"
+        className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing shrink-0"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <div className="size-3 shrink-0 rounded-full" style={{ backgroundColor: tipo.cor_hex }} />
+      <span className="flex-1 text-sm font-medium">{tipo.label}</span>
+      <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => onEdit(tipo)}>
+        <Edit2 className="size-3.5" />
+      </Button>
+    </li>
+  );
+}
+
+// ─── Props ───────────────────────────────────────────────────────────────────
+
+type Props = {
+  pessoas: Pessoa[];
+  tipos: TipoEvento[];
+  configFinanceira: ConfigFinanceira[];
+};
 
 type Form = {
   nome: string;
@@ -79,16 +127,61 @@ function defaultTipoForm(): TipoForm {
   return { label: "", cor_hex: "#6366f1" };
 }
 
-export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
+export function ConfiguracoesCliente({
+  pessoas,
+  tipos: tiposInicial,
+  configFinanceira: configInicial,
+}: Props) {
   const [pending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Pessoa | null>(null);
   const [form, setForm] = useState<Form>(defaultForm());
 
   // Tipos de evento
+  const [tipos, setTipos] = useState<TipoEvento[]>(tiposInicial);
   const [tipoModalOpen, setTipoModalOpen] = useState(false);
   const [tipoEditando, setTipoEditando] = useState<TipoEvento | null>(null);
   const [tipoForm, setTipoForm] = useState<TipoForm>(defaultTipoForm());
+
+  // Configuração financeira — inline editing
+  const [configFinanceira, setConfigFinanceira] = useState<
+    Record<string, { salario_base: number; valor_vt_dia: number }>
+  >(
+    configInicial.reduce(
+      (acc, cfg) => {
+        acc[cfg.funcionario_id] = {
+          salario_base: cfg.salario_base,
+          valor_vt_dia: cfg.valor_vt_dia,
+        };
+        return acc;
+      },
+      {} as Record<string, { salario_base: number; valor_vt_dia: number }>,
+    ),
+  );
+
+  // Sync local state when server revalidates (after create/edit/delete)
+  useEffect(() => { setTipos(tiposInicial); }, [tiposInicial]);
+
+  // DnD sensors
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setTipos((prev) => {
+      const oldIndex = prev.findIndex((t) => t.id === active.id);
+      const newIndex = prev.findIndex((t) => t.id === over.id);
+      const nova = arrayMove(prev, oldIndex, newIndex);
+      startTransition(async () => {
+        try {
+          await reordenarTipos(nova.map((t) => t.id));
+        } catch {
+          toast.error("Erro ao salvar ordem.");
+        }
+      });
+      return nova;
+    });
+  }
 
   function openCriarTipo() {
     setTipoEditando(null);
@@ -186,6 +279,23 @@ export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
     startTransition(async () => {
       await updatePessoa(p.id, { ativo: !p.ativo });
       toast.success(p.ativo ? "Marcado como inativo." : "Reativado.");
+    });
+  }
+
+  function handleSaveConfig(funcionario_id: string) {
+    const cfg = configFinanceira[funcionario_id];
+    if (!cfg) return;
+    startTransition(async () => {
+      try {
+        await upsertConfigFinanceira({
+          funcionario_id,
+          salario_base: cfg.salario_base,
+          valor_vt_dia: cfg.valor_vt_dia,
+        });
+        toast.success("Parâmetros salvos.");
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
+      }
     });
   }
 
@@ -296,6 +406,87 @@ export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
       </div>
 
       <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Parâmetros de Pagamento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {funcionarios.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nenhum funcionário cadastrado.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {funcionarios.map((p) => {
+                const cfg = configFinanceira[p.id] || {
+                  salario_base: 0,
+                  valor_vt_dia: 0,
+                };
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-md border px-3 py-2"
+                  >
+                    <div
+                      className="size-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: p.cor_hex }}
+                    />
+                    <span className="w-24 flex-shrink-0 text-sm font-medium">{p.nome}</span>
+                    <div className="flex flex-1 gap-2">
+                      <div className="flex-1">
+                        <label className="block text-xs text-muted-foreground mb-1">
+                          Salário base (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={cfg.salario_base}
+                          onChange={(e) =>
+                            setConfigFinanceira({
+                              ...configFinanceira,
+                              [p.id]: { ...cfg, salario_base: parseFloat(e.target.value) || 0 },
+                            })
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-muted-foreground mb-1">
+                          VT/dia (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={cfg.valor_vt_dia}
+                          onChange={(e) =>
+                            setConfigFinanceira({
+                              ...configFinanceira,
+                              [p.id]: { ...cfg, valor_vt_dia: parseFloat(e.target.value) || 0 },
+                            })
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSaveConfig(p.id)}
+                      disabled={pending}
+                      className="h-8"
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="flex-row items-center justify-between pb-3">
           <CardTitle className="text-base">Categorias de evento</CardTitle>
           <Button size="sm" variant="outline" onClick={openCriarTipo}>
@@ -304,33 +495,15 @@ export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
           </Button>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2">
-            {tipos.map((t) => (
-              <li
-                key={t.id}
-                className="flex items-center gap-2 rounded-md border px-3 py-2"
-              >
-                <div
-                  className="size-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: t.cor_hex }}
-                />
-                <span className="flex-1 text-sm font-medium">{t.label}</span>
-                {t.sistema && (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    padrão
-                  </Badge>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  onClick={() => openEditarTipo(t)}
-                >
-                  <Edit2 className="size-3.5" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={tipos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              <ul className="space-y-2">
+                {tipos.map((t) => (
+                  <TipoRow key={t.id} tipo={t} onEdit={openEditarTipo} />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
         </CardContent>
       </Card>
 
@@ -355,26 +528,15 @@ export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
 
             <div className="space-y-1.5">
               <Label>Cor no calendário</Label>
-              <div className="flex flex-wrap gap-2">
-                {CORES.map((cor) => (
-                  <button
-                    key={cor}
-                    type="button"
-                    onClick={() => setTipoForm({ ...tipoForm, cor_hex: cor })}
-                    className={`size-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                      tipoForm.cor_hex === cor
-                        ? "border-foreground scale-110"
-                        : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: cor }}
-                  />
-                ))}
-              </div>
+              <ColorPicker
+                value={tipoForm.cor_hex}
+                onChange={(cor) => setTipoForm({ ...tipoForm, cor_hex: cor })}
+              />
             </div>
           </div>
 
           <DialogFooter className="gap-2">
-            {tipoEditando && !tipoEditando.sistema && (
+            {tipoEditando && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -465,21 +627,10 @@ export function ConfiguracoesCliente({ pessoas, tipos }: Props) {
 
             <div className="space-y-1.5">
               <Label>Cor no calendário</Label>
-              <div className="flex flex-wrap gap-2">
-                {CORES.map((cor) => (
-                  <button
-                    key={cor}
-                    type="button"
-                    onClick={() => setForm({ ...form, cor_hex: cor })}
-                    className={`size-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                      form.cor_hex === cor
-                        ? "border-foreground scale-110"
-                        : "border-transparent"
-                    }`}
-                    style={{ backgroundColor: cor }}
-                  />
-                ))}
-              </div>
+              <ColorPicker
+                value={form.cor_hex}
+                onChange={(cor) => setForm({ ...form, cor_hex: cor })}
+              />
             </div>
           </div>
 

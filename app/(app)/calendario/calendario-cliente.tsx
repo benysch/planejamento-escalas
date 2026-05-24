@@ -41,6 +41,7 @@ export function CalendarioCliente({ eventos, pessoas, tipos, ano, mes }: Props) 
     <>
       <CalendarioMensal
         eventos={eventos}
+        tipos={tipos}
         ano={ano}
         mes={mes}
         onMesChange={handleMesChange}

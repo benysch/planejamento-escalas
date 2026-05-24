@@ -20,32 +20,46 @@ const DIAS_SEMANA = [
 async function getDashboardData() {
   const sb = getSupabase();
   const today = new Date().toISOString().split("T")[0];
+  const amanha = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   const anoAtual = new Date().getFullYear();
   const em14dias = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
 
-  const [{ data: pessoas }, { data: eventosHoje }, { data: proximosEventos }, { data: tipos }, { data: rotinas }, { data: escalaHoje }] =
-    await Promise.all([
-      sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
-      sb
-        .from("pe_eventos")
-        .select("*, pe_evento_pessoas(pessoa_id)")
-        .lte("data_inicio", today)
-        .gte("data_fim", today)
-        .order("data_inicio"),
-      sb
-        .from("pe_eventos")
-        .select("*, pe_evento_pessoas(pessoa_id)")
-        .gt("data_inicio", today)
-        .lte("data_inicio", em14dias)
-        .order("data_inicio")
-        .limit(10),
-      sb.from("pe_evento_tipos").select("*").order("ordem"),
-      sb.from("pe_rotinas").select("*").eq("ativo", true).order("dia_semana").order("ordem"),
-      sb.from("pe_escala_dias").select("funcionario_id").eq("data", today),
-    ]);
+  const [
+    { data: pessoas },
+    { data: eventosHoje },
+    { data: proximosEventos },
+    { data: tipos },
+    { data: rotinas },
+    { data: escalaDoisDias },
+    { data: eventosAmanha },
+  ] = await Promise.all([
+    sb.from("pe_pessoas").select("*").eq("ativo", true).order("nome"),
+    sb
+      .from("pe_eventos")
+      .select("*, pe_evento_pessoas(pessoa_id)")
+      .lte("data_inicio", today)
+      .gte("data_fim", today)
+      .order("data_inicio"),
+    sb
+      .from("pe_eventos")
+      .select("*, pe_evento_pessoas(pessoa_id)")
+      .gt("data_inicio", today)
+      .lte("data_inicio", em14dias)
+      .order("data_inicio")
+      .limit(10),
+    sb.from("pe_evento_tipos").select("*").order("ordem"),
+    sb.from("pe_rotinas").select("*").eq("ativo", true).order("dia_semana").order("ordem"),
+    sb.from("pe_escala_dias").select("funcionario_id, data").gte("data", today).lte("data", amanha),
+    sb
+      .from("pe_eventos")
+      .select("*, pe_evento_pessoas(pessoa_id)")
+      .lte("data_inicio", amanha)
+      .gte("data_fim", amanha)
+      .in("tipo", ["folga_funcionario", "ferias_funcionario"]),
+  ]);
 
   const pessoaMap = new Map<string, Pessoa>(
     (pessoas ?? []).map((p) => [p.id, p]),
@@ -70,13 +84,22 @@ async function getDashboardData() {
   const funcionarios = (pessoas ?? []).filter((p) => p.tipo === "funcionario");
 
   const programadosHoje = new Set(
-    (escalaHoje ?? []).map((d) => d.funcionario_id),
+    (escalaDoisDias ?? []).filter((d) => d.data === today).map((d) => d.funcionario_id),
   );
+  const programadosAmanha = new Set(
+    (escalaDoisDias ?? []).filter((d) => d.data === amanha).map((d) => d.funcionario_id),
+  );
+
   const ausenciasHoje = eventosHojeEnriquecidos.filter((e) =>
     ["folga_funcionario", "ferias_funcionario"].includes(e.tipo),
   );
   const ausentes = new Set(
     ausenciasHoje.flatMap((e) => e.pessoas.map((p) => p.id)),
+  );
+  const ausentesAmanha = new Set(
+    (eventosAmanha ?? [])
+      .map(enrichEvento)
+      .flatMap((e) => e.pessoas.map((p) => p.id)),
   );
 
   const conflitos: string[] = [];
@@ -97,9 +120,12 @@ async function getDashboardData() {
     eventosHoje: eventosHojeEnriquecidos,
     proximos: proximosEnriquecidos,
     ausentes,
+    ausentesAmanha,
     programadosHoje,
+    programadosAmanha,
     conflitos,
     today,
+    amanha,
     anoAtual,
     tipos: (tipos ?? []) as TipoEvento[],
     rotinas: (rotinas ?? []) as Rotina[],
@@ -145,9 +171,43 @@ function EventoItem({ evento, tipos }: { evento: EventoComPessoas; tipos: TipoEv
   );
 }
 
+function StatusDia({
+  programado,
+  ausente,
+}: {
+  programado: boolean;
+  ausente: boolean;
+}) {
+  if (ausente)
+    return (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+        Folga
+      </span>
+    );
+  if (programado)
+    return (
+      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+        ✓ Prog.
+      </span>
+    );
+  return <span className="text-muted-foreground/50 text-xs">—</span>;
+}
+
 export default async function DashboardPage() {
-  const { funcionarios, eventosHoje, proximos, ausentes, programadosHoje, conflitos, today, tipos, rotinas } =
-    await getDashboardData();
+  const {
+    funcionarios,
+    eventosHoje,
+    proximos,
+    ausentes,
+    ausentesAmanha,
+    programadosHoje,
+    programadosAmanha,
+    conflitos,
+    today,
+    amanha,
+    tipos,
+    rotinas,
+  } = await getDashboardData();
 
   const [y, m, d] = today.split("-");
   const dataFormatada = `${d} de ${MESES[parseInt(m) - 1]} de ${y}`;
@@ -235,7 +295,7 @@ export default async function DashboardPage() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="size-4" />
-              Funcionários hoje
+              Funcionários
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -244,34 +304,46 @@ export default async function DashboardPage() {
                 Nenhum funcionário cadastrado.
               </p>
             ) : (
-              <ul className="space-y-1.5">
-                {funcionarios.map((f) => {
-                  const temFolga = ausentes.has(f.id);
-                  const programado = programadosHoje.has(f.id);
-                  return (
-                    <li key={f.id} className="flex items-center gap-2 text-sm">
-                      <div
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: f.cor_hex }}
-                      />
-                      <span className="flex-1">{f.nome}</span>
-                      {temFolga ? (
-                        <Badge variant="secondary" className="text-xs">
-                          Folga/Férias
-                        </Badge>
-                      ) : programado ? (
-                        <Badge className="text-xs bg-emerald-600 hover:bg-emerald-600">
-                          Programado
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          Não programado
-                        </Badge>
-                      )}
+              <div>
+                {/* Cabeçalho colunas */}
+                <div className="grid grid-cols-[1fr_64px_64px] gap-1 pb-2 mb-1 border-b">
+                  <div />
+                  <span className="text-[10px] font-medium text-muted-foreground text-center uppercase tracking-wide">
+                    Hoje
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground text-center uppercase tracking-wide">
+                    Amanhã
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {funcionarios.map((f) => (
+                    <li
+                      key={f.id}
+                      className="grid grid-cols-[1fr_64px_64px] items-center gap-1 py-1"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: f.cor_hex }}
+                        />
+                        <span className="text-sm truncate">{f.nome}</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <StatusDia
+                          programado={programadosHoje.has(f.id)}
+                          ausente={ausentes.has(f.id)}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <StatusDia
+                          programado={programadosAmanha.has(f.id)}
+                          ausente={ausentesAmanha.has(f.id)}
+                        />
+                      </div>
                     </li>
-                  );
-                })}
-              </ul>
+                  ))}
+                </ul>
+              </div>
             )}
           </CardContent>
         </Card>

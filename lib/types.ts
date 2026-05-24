@@ -146,6 +146,36 @@ export function getEventoCor(evento: EventoComPessoas): string {
   return EVENTO_TIPO_COR[evento.tipo as EventoTipo] ?? "#6366f1";
 }
 
+export type TipoPagamento =
+  | "salario"
+  | "vt"
+  | "folguista"
+  | "extra"
+  | "adiantamento"
+  | "encargos"
+  | "outro";
+
+export type Pagamento = {
+  id: string;
+  mes: number;
+  ano: number;
+  despesa: string;
+  funcionario_id: string | null;
+  tipo_pagamento: TipoPagamento;
+  valor: number;
+  observacao: string | null;
+  pago: boolean;
+  data_pagamento: string | null;
+  criado_em: string;
+};
+
+export type ConfigFinanceira = {
+  id: string;
+  funcionario_id: string;
+  salario_base: number;
+  valor_vt_dia: number;
+};
+
 export const MESES = [
   "Janeiro",
   "Fevereiro",

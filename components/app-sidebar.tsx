@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Banknote,
   CalendarDays,
   CalendarRange,
   ClipboardList,
+  House,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -33,6 +35,7 @@ const navItems = [
   { title: "Calendário", url: "/calendario", icon: CalendarDays },
   { title: "Visão Anual", url: "/anual", icon: CalendarRange },
   { title: "Funcionários", url: "/funcionarios", icon: Users },
+  { title: "Pagamentos", url: "/pagamentos", icon: Banknote },
   { title: "Eventos", url: "/eventos", icon: ListChecks },
   { title: "Rotinas", url: "/rotinas", icon: ClipboardList },
 ];
@@ -44,8 +47,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg text-sm font-bold">
-            P&E
+          <div className="bg-foreground text-background flex size-9 items-center justify-center rounded-lg">
+            <House className="size-5" strokeWidth={1.75} />
           </div>
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold">Planejamento</span>

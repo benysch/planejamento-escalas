@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { isCorPastel } from "@/lib/cores";
 import { CARGO_LABEL, MESES } from "@/lib/types";
 import type { EscalaMensal, Pessoa } from "@/lib/types";
 
@@ -144,7 +145,7 @@ function EscalaCard({
                 className={[
                   "flex h-8 w-full items-center justify-center rounded-md text-xs font-medium transition-all",
                   programado
-                    ? "text-white shadow-sm"
+                    ? `${isCorPastel(funcionario.cor_hex) ? "text-black/80" : "text-white"} shadow-sm`
                     : isWeekend
                       ? "text-muted-foreground/50 hover:bg-muted"
                       : "text-foreground hover:bg-muted",
