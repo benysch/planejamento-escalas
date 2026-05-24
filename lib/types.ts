@@ -157,6 +157,7 @@ export type TipoPagamento =
   | "extra"
   | "adiantamento"
   | "encargos"
+  | "resumo"
   | "outro";
 
 export type Pagamento = {

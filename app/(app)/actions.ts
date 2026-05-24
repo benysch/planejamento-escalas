@@ -563,3 +563,71 @@ export async function gerarPagamentosDoMes(mes: number, ano: number) {
     count: pagamentosAInserir.length,
   };
 }
+
+// ─── Novo fluxo de pagamentos (por bloco) ───────────────────────────────────
+
+export async function marcarBlocoFuncionariaPago(
+  funcionario_id: string,
+  mes: number,
+  ano: number,
+  pago: boolean,
+  data_pagamento?: string | null,
+) {
+  const sb = getSupabase();
+  const totalValor = 0; // será calculado no servidor se necessário
+
+  const { error } = await sb
+    .from("pe_pagamentos")
+    .upsert(
+      {
+        funcionario_id,
+        mes,
+        ano,
+        despesa: `Resumo ${MESES[mes - 1]} ${ano}`,
+        tipo_pagamento: "resumo",
+        valor: totalValor,
+        pago,
+        data_pagamento: pago ? data_pagamento : null,
+        observacao: null,
+      },
+      { onConflict: "funcionario_id,mes,ano,tipo_pagamento" },
+    );
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/pagamentos");
+}
+
+export async function upsertPagamentoAvulso(data: {
+  id?: string;
+  mes: number;
+  ano: number;
+  despesa: string;
+  tipo_pagamento: string;
+  valor: number;
+  observacao?: string | null;
+}) {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from("pe_pagamentos")
+    .upsert(data, { onConflict: "id" });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/pagamentos");
+}
+
+// ─── Constantes ─────────────────────────────────────────────────────────────
+
+const MESES = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
