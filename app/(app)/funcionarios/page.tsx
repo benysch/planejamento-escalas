@@ -14,7 +14,7 @@ async function getData(ano: number, mes: number) {
       sb.from("pe_pessoas").select("*").eq("tipo", "funcionario").order("nome"),
       sb
         .from("pe_escala_dias")
-        .select("funcionario_id, data")
+        .select("*")
         .gte("data", primeiroDia)
         .lte("data", ultimoDiaStr),
       sb
@@ -24,11 +24,11 @@ async function getData(ano: number, mes: number) {
         .eq("mes", mes),
     ]);
 
-  const diasPorFuncionario: Record<string, string[]> = {};
+  const diasPorFuncionario: Record<string, import("@/lib/types").EscalaDia[]> = {};
   for (const d of escalasDias ?? []) {
     if (!diasPorFuncionario[d.funcionario_id])
       diasPorFuncionario[d.funcionario_id] = [];
-    diasPorFuncionario[d.funcionario_id].push(d.data);
+    diasPorFuncionario[d.funcionario_id].push(d as import("@/lib/types").EscalaDia);
   }
 
   const escalaMensalPorFuncionario: Record<string, EscalaMensal> = {};

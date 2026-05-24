@@ -226,19 +226,51 @@ export async function deleteRotina(id: string) {
 
 // ─── Escala Dias ────────────────────────────────────────────────────────────
 
-export async function toggleEscalaDia(funcionario_id: string, data: string) {
+export async function toggleEscalaDia(
+  funcionario_id: string,
+  data: string,
+  obs?: string | null,
+) {
   const sb = getSupabase();
   const { data: existing } = await sb
     .from("pe_escala_dias")
-    .select("id")
+    .select("tipo_alocacao")
     .eq("funcionario_id", funcionario_id)
     .eq("data", data)
     .maybeSingle();
-  if (existing) {
-    const { error } = await sb.from("pe_escala_dias").delete().eq("id", existing.id);
+
+  if (!existing) {
+    // não existe → insert tipo='normal'
+    const { error } = await sb.from("pe_escala_dias").insert({
+      funcionario_id,
+      data,
+      tipo_alocacao: "normal",
+      obs: null,
+    });
     if (error) throw new Error(error.message);
-  } else {
-    const { error } = await sb.from("pe_escala_dias").insert({ funcionario_id, data });
+  } else if (existing.tipo_alocacao === "normal") {
+    // normal → update para 'folguista'
+    const { error } = await sb
+      .from("pe_escala_dias")
+      .update({ tipo_alocacao: "folguista", obs: null })
+      .eq("funcionario_id", funcionario_id)
+      .eq("data", data);
+    if (error) throw new Error(error.message);
+  } else if (existing.tipo_alocacao === "folguista") {
+    // folguista → update para 'especial'
+    const { error } = await sb
+      .from("pe_escala_dias")
+      .update({ tipo_alocacao: "especial", obs: obs ?? null })
+      .eq("funcionario_id", funcionario_id)
+      .eq("data", data);
+    if (error) throw new Error(error.message);
+  } else if (existing.tipo_alocacao === "especial") {
+    // especial → delete
+    const { error } = await sb
+      .from("pe_escala_dias")
+      .delete()
+      .eq("funcionario_id", funcionario_id)
+      .eq("data", data);
     if (error) throw new Error(error.message);
   }
   revalidatePath("/", "layout");
@@ -276,6 +308,7 @@ export async function upsertConfigFinanceira(data: {
   funcionario_id: string;
   salario_base: number;
   valor_vt_dia: number;
+  valor_folguista_dia: number;
 }) {
   const sb = getSupabase();
   const { error } = await sb

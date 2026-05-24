@@ -12,13 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { isCorPastel } from "@/lib/cores";
 import { CARGO_LABEL, MESES } from "@/lib/types";
-import type { EscalaMensal, Pessoa } from "@/lib/types";
+import type { EscalaDia, EscalaMensal, Pessoa } from "@/lib/types";
 
 const DIAS_HEADER = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 type Props = {
   funcionarios: Pessoa[];
-  diasPorFuncionario: Record<string, string[]>;
+  diasPorFuncionario: Record<string, EscalaDia[]>;
   escalaMensalPorFuncionario: Record<string, EscalaMensal>;
   ano: number;
   mes: number;
@@ -35,7 +35,7 @@ function EscalaCard({
   mes,
 }: {
   funcionario: Pessoa;
-  diasProgramados: string[];
+  diasProgramados: EscalaDia[];
   escala: EscalaMensal | undefined;
   ano: number;
   mes: number;
@@ -43,8 +43,19 @@ function EscalaCard({
   const [, startTransition] = useTransition();
   const [optimisticDias, toggleOptimistic] = useOptimistic(
     diasProgramados,
-    (state: string[], dia: string) =>
-      state.includes(dia) ? state.filter((d) => d !== dia) : [...state, dia],
+    (state: EscalaDia[], dateStr: string): EscalaDia[] => {
+      const existing = state.find((d) => d.data === dateStr);
+      if (!existing) {
+        return [...state, { id: `temp-${dateStr}`, funcionario_id: funcionario.id, data: dateStr, tipo_alocacao: "normal", obs: null }];
+      }
+      if (existing.tipo_alocacao === "normal") {
+        return state.map((d) => d.data === dateStr ? { ...d, tipo_alocacao: "folguista" } : d);
+      }
+      if (existing.tipo_alocacao === "folguista") {
+        return state.map((d) => d.data === dateStr ? { ...d, tipo_alocacao: "especial" } : d);
+      }
+      return state.filter((d) => d.data !== dateStr);
+    },
   );
 
   // VT edit
@@ -94,7 +105,7 @@ function EscalaCard({
     });
   }
 
-  const totalProgramados = optimisticDias.length;
+  const totalProgramados = optimisticDias.filter((d) => d.tipo_alocacao).length;
 
   return (
     <Card>
@@ -133,9 +144,27 @@ function EscalaCard({
             if (!dia) return <div key={idx} />;
 
             const dateStr = `${mesStr}-${String(dia).padStart(2, "0")}`;
-            const programado = optimisticDias.includes(dateStr);
+            const diaData = optimisticDias.find((d) => d.data === dateStr);
             const isHoje = dateStr === hoje;
             const isWeekend = idx % 7 === 0 || idx % 7 === 6;
+            const tipo = diaData?.tipo_alocacao;
+
+            let borderClass = "";
+            let textClass = "text-xs font-medium";
+            let bgStyle: Record<string, string> | undefined;
+
+            if (tipo === "normal") {
+              bgStyle = { backgroundColor: funcionario.cor_hex };
+              textClass += ` ${isCorPastel(funcionario.cor_hex) ? "text-black/80" : "text-white"}`;
+            } else if (tipo === "folguista") {
+              bgStyle = { backgroundColor: funcionario.cor_hex, borderWidth: "2px", borderColor: "white" };
+              textClass += ` font-bold ${isCorPastel(funcionario.cor_hex) ? "text-black/80" : "text-white"}`;
+              borderClass = "border-2 border-white";
+            } else if (tipo === "especial") {
+              bgStyle = { backgroundColor: funcionario.cor_hex, borderWidth: "2px", borderStyle: "dashed", borderColor: "white" };
+              textClass += ` font-bold ${isCorPastel(funcionario.cor_hex) ? "text-black/80" : "text-white"}`;
+              borderClass = "border-2 border-dashed border-white relative";
+            }
 
             return (
               <button
@@ -143,21 +172,47 @@ function EscalaCard({
                 type="button"
                 onClick={() => handleToggle(dia)}
                 className={[
-                  "flex h-8 w-full items-center justify-center rounded-md text-xs font-medium transition-all",
-                  programado
-                    ? `${isCorPastel(funcionario.cor_hex) ? "text-black/80" : "text-white"} shadow-sm`
-                    : isWeekend
-                      ? "text-muted-foreground/50 hover:bg-muted"
-                      : "text-foreground hover:bg-muted",
-                  isHoje && !programado ? "ring-2 ring-primary ring-offset-1" : "",
-                  isHoje && programado ? "ring-2 ring-offset-1 ring-white/70" : "",
+                  "flex h-8 w-full items-center justify-center rounded-md transition-all relative",
+                  tipo ? "shadow-sm" : isWeekend ? "text-muted-foreground/50 hover:bg-muted" : "text-foreground hover:bg-muted",
+                  isHoje && !tipo ? "ring-2 ring-primary ring-offset-1" : "",
+                  isHoje && tipo ? "ring-2 ring-offset-1 ring-white/70" : "",
+                  borderClass,
+                  textClass,
                 ].join(" ")}
-                style={programado ? { backgroundColor: funcionario.cor_hex } : undefined}
+                style={bgStyle}
               >
                 {dia}
+                {tipo === "especial" && (
+                  <span className="absolute top-0 right-0.5 text-[8px] leading-none">★</span>
+                )}
               </button>
             );
           })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-4 text-xs text-muted-foreground pt-2">
+          <div className="flex items-center gap-1">
+            <div
+              className="size-3 rounded-sm"
+              style={{ backgroundColor: funcionario.cor_hex }}
+            />
+            <span>Normal</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div
+              className="size-3 rounded-sm border-2 border-white"
+              style={{ backgroundColor: funcionario.cor_hex }}
+            />
+            <span>Folguista</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div
+              className="size-3 rounded-sm border-2 border-dashed border-white"
+              style={{ backgroundColor: funcionario.cor_hex }}
+            />
+            <span>Especial</span>
+          </div>
         </div>
 
         {/* VT */}

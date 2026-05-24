@@ -67,10 +67,14 @@ export type Rotina = {
   ativo: boolean;
 };
 
+export type TipoAlocacao = 'normal' | 'folguista' | 'especial';
+
 export type EscalaDia = {
   id: string;
   funcionario_id: string;
   data: string; // YYYY-MM-DD
+  tipo_alocacao: TipoAlocacao;
+  obs: string | null;
 };
 
 export type EscalaMensal = {
@@ -174,6 +178,7 @@ export type ConfigFinanceira = {
   funcionario_id: string;
   salario_base: number;
   valor_vt_dia: number;
+  valor_folguista_dia: number;
 };
 
 export const MESES = [

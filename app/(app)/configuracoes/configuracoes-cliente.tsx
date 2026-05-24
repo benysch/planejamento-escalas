@@ -145,17 +145,18 @@ export function ConfiguracoesCliente({
 
   // Configuração financeira — inline editing
   const [configFinanceira, setConfigFinanceira] = useState<
-    Record<string, { salario_base: number; valor_vt_dia: number }>
+    Record<string, { salario_base: number; valor_vt_dia: number; valor_folguista_dia: number }>
   >(
     configInicial.reduce(
       (acc, cfg) => {
         acc[cfg.funcionario_id] = {
           salario_base: cfg.salario_base,
           valor_vt_dia: cfg.valor_vt_dia,
+          valor_folguista_dia: cfg.valor_folguista_dia,
         };
         return acc;
       },
-      {} as Record<string, { salario_base: number; valor_vt_dia: number }>,
+      {} as Record<string, { salario_base: number; valor_vt_dia: number; valor_folguista_dia: number }>,
     ),
   );
 
@@ -291,6 +292,7 @@ export function ConfiguracoesCliente({
           funcionario_id,
           salario_base: cfg.salario_base,
           valor_vt_dia: cfg.valor_vt_dia,
+          valor_folguista_dia: cfg.valor_folguista_dia,
         });
         toast.success("Parâmetros salvos.");
       } catch (e: unknown) {
@@ -420,6 +422,7 @@ export function ConfiguracoesCliente({
                 const cfg = configFinanceira[p.id] || {
                   salario_base: 0,
                   valor_vt_dia: 0,
+                  valor_folguista_dia: 0,
                 };
                 return (
                   <div
@@ -463,6 +466,24 @@ export function ConfiguracoesCliente({
                             setConfigFinanceira({
                               ...configFinanceira,
                               [p.id]: { ...cfg, valor_vt_dia: parseFloat(e.target.value) || 0 },
+                            })
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-muted-foreground mb-1">
+                          Folguista/dia (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={cfg.valor_folguista_dia}
+                          onChange={(e) =>
+                            setConfigFinanceira({
+                              ...configFinanceira,
+                              [p.id]: { ...cfg, valor_folguista_dia: parseFloat(e.target.value) || 0 },
                             })
                           }
                           className="h-8 text-sm"
