@@ -130,6 +130,42 @@ function EscalaCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Instrução e Legenda */}
+        <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 space-y-2">
+          <p className="text-xs font-medium text-blue-900 dark:text-blue-100">
+            Clique nos dias para alternar entre os tipos:
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex items-center gap-2">
+              <div
+                className="size-6 rounded text-white flex items-center justify-center text-xs font-bold"
+                style={{ backgroundColor: funcionario.cor_hex }}
+              >
+                1
+              </div>
+              <span className="text-xs font-medium">Normal (salário)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                className="size-6 rounded border-2 border-white text-white flex items-center justify-center text-xs font-bold"
+                style={{ backgroundColor: funcionario.cor_hex }}
+              >
+                2
+              </div>
+              <span className="text-xs font-medium">Folguista</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                className="size-6 rounded border-2 border-dashed border-white text-white flex items-center justify-center text-xs font-bold relative"
+                style={{ backgroundColor: funcionario.cor_hex }}
+              >
+                3 <span className="absolute top-0 right-0 text-[10px]">★</span>
+              </div>
+              <span className="text-xs font-medium">Especial (extra)</span>
+            </div>
+          </div>
+        </div>
+
         {/* Mini calendário */}
         <div className="grid grid-cols-7 gap-1 text-center text-xs">
           {DIAS_HEADER.map((d, i) => (
@@ -182,37 +218,15 @@ function EscalaCard({
                 style={bgStyle}
               >
                 {dia}
+                {tipo === "folguista" && (
+                  <span className="absolute top-0 right-0.5 text-[8px] leading-none">☆</span>
+                )}
                 {tipo === "especial" && (
                   <span className="absolute top-0 right-0.5 text-[8px] leading-none">★</span>
                 )}
               </button>
             );
           })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex gap-4 text-xs text-muted-foreground pt-2">
-          <div className="flex items-center gap-1">
-            <div
-              className="size-3 rounded-sm"
-              style={{ backgroundColor: funcionario.cor_hex }}
-            />
-            <span>Normal</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div
-              className="size-3 rounded-sm border-2 border-white"
-              style={{ backgroundColor: funcionario.cor_hex }}
-            />
-            <span>Folguista</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div
-              className="size-3 rounded-sm border-2 border-dashed border-white"
-              style={{ backgroundColor: funcionario.cor_hex }}
-            />
-            <span>Especial</span>
-          </div>
         </div>
 
         {/* VT */}
