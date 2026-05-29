@@ -56,9 +56,13 @@ export function CalendarioMensal({
       const end = new Date(ev.data_fim + "T00:00:00");
       const cur = new Date(start);
       while (cur <= end) {
-        const key = cur.toISOString().split("T")[0];
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(ev);
+        const dow = cur.getDay(); // 0=Dom, 6=Sáb
+        const isFds = dow === 0 || dow === 6;
+        if (!(ev.tipo === "ferias_escola" && isFds)) {
+          const key = cur.toISOString().split("T")[0];
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(ev);
+        }
         cur.setDate(cur.getDate() + 1);
       }
     }
