@@ -110,7 +110,7 @@ function EscalaCard({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-semibold">
           <div
             className="size-3 shrink-0 rounded-full"
             style={{ backgroundColor: funcionario.cor_hex }}
@@ -135,7 +135,7 @@ function EscalaCard({
           <p className="text-xs font-medium text-blue-900 dark:text-blue-100">
             Clique nos dias para alternar entre os tipos:
           </p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
             <div className="flex items-center gap-2">
               <div
                 className="size-6 rounded text-white flex items-center justify-center text-xs font-bold"
@@ -208,7 +208,7 @@ function EscalaCard({
                 type="button"
                 onClick={() => handleToggle(dia)}
                 className={[
-                  "flex h-8 w-full items-center justify-center rounded-md transition-all relative",
+                  "flex h-9 w-full items-center justify-center rounded-md transition-all relative sm:h-8",
                   tipo ? "shadow-sm" : isWeekend ? "text-muted-foreground/50 hover:bg-muted" : "text-foreground hover:bg-muted",
                   isHoje && !tipo ? "ring-2 ring-primary ring-offset-1" : "",
                   isHoje && tipo ? "ring-2 ring-offset-1 ring-white/70" : "",
@@ -232,7 +232,7 @@ function EscalaCard({
         {/* VT */}
         <div className="border-t pt-3">
           {vtEditando ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground shrink-0">VT (dias):</span>
               <Input
                 type="number"

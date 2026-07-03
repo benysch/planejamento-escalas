@@ -51,6 +51,7 @@ export type Evento = {
   emoji: string | null;
   trava_agenda: boolean;
   recorrente_anual: boolean;
+  faixa_horario: string | null;
   criado_em: string;
 };
 
@@ -112,6 +113,21 @@ export const EVENTO_TIPO_COR: Record<EventoTipo, string> = {
   outro: "#64748b",
 } as Record<EventoTipo, string>;
 
+/** Faixas de horário estimadas para ordenar atividades dentro de um dia.
+ *  A ordem do array define a ordem de exibição no calendário. */
+export const FAIXAS_HORARIO = [
+  { value: "08_10", label: "8h–10h" },
+  { value: "10_12", label: "10h–12h" },
+  { value: "12_14", label: "12h–14h" },
+  { value: "14_16", label: "14h–16h" },
+  { value: "16_18", label: "16h–18h" },
+  { value: "18_mais", label: "Depois das 18h" },
+] as const;
+
+export const FAIXA_HORARIO_ORDEM: Record<string, number> = Object.fromEntries(
+  FAIXAS_HORARIO.map((f, i) => [f.value, i]),
+);
+
 export const CARGO_LABEL: Record<PessoaCargo, string> = {
   adulto: "Adulto",
   crianca: "Criança",
@@ -135,6 +151,8 @@ export const EMOJIS_EVENTO = [
   { emoji: "🤒", label: "Doente" },
   { emoji: "🩺", label: "Médico" },
   { emoji: "⚽", label: "Esporte" },
+  { emoji: "🏊", label: "Natação" },
+  { emoji: "🎵", label: "Aula de música" },
   { emoji: "🎭", label: "Show/Teatro" },
 ];
 

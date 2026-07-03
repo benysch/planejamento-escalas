@@ -255,7 +255,7 @@ export default async function DashboardPage() {
       )}
 
       {greeting && (
-        <div className="rounded-xl border bg-gradient-to-br from-amber-50 to-orange-50 px-8 py-10 dark:from-amber-950/20 dark:to-orange-950/20 dark:border-amber-900/30">
+        <div className="rounded-xl border bg-gradient-to-br from-amber-50 to-orange-50 px-5 py-8 sm:px-8 sm:py-10 dark:from-amber-950/20 dark:to-orange-950/20 dark:border-amber-900/30">
           <div className="text-5xl mb-3">{greeting.emoji}</div>
           <p className="text-3xl font-bold tracking-tight">{greeting.texto}</p>
           <p className="text-muted-foreground mt-1 text-sm">{greeting.sub}</p>

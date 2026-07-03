@@ -204,7 +204,7 @@ export function PagamentosCliente({
           <Button variant="ghost" size="icon" onClick={() => navMes(-1)}>
             <ChevronLeft className="size-4" />
           </Button>
-          <h2 className="text-3xl font-bold min-w-48 text-center">
+          <h2 className="min-w-40 text-center text-2xl font-bold sm:min-w-48 sm:text-3xl">
             {MESES[mes - 1]} {ano}
           </h2>
           <Button variant="ghost" size="icon" onClick={() => navMes(1)}>
@@ -223,23 +223,23 @@ export function PagamentosCliente({
         return (
           <Card key={bloco.funcionario_id}>
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div
                   className="size-4 shrink-0 rounded-full"
                   style={{ backgroundColor: bloco.cor_hex }}
                 />
                 <CardTitle className="flex-1">{bloco.nome}</CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
                   <span className="text-lg font-semibold">
                     R$ {parcelas.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </span>
-                  <label className="flex items-center gap-2 ml-4">
+                  <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 sm:ml-4 sm:min-h-0">
                     <input
                       type="checkbox"
                       checked={bloco.pago}
                       onChange={() => handleTogglePago(bloco)}
                       disabled={pending || !temDados}
-                      className="cursor-pointer"
+                      className="size-4 cursor-pointer"
                     />
                     <span className="text-sm font-medium">
                       {bloco.pago ? `Pago em ${bloco.data_pagamento}` : "Marcar como pago"}
@@ -345,7 +345,7 @@ export function PagamentosCliente({
       {/* Totais */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-3 gap-4 font-semibold">
+          <div className="grid gap-3 font-semibold sm:grid-cols-3 sm:gap-4">
             <div>
               Total Geral
               <p className="text-2xl">

@@ -127,6 +127,17 @@
   }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Mobile: campos com fonte ≥16px — senão o iOS Safari dá zoom ao focar.
+   Regra fora de @layer para vencer utilitários text-xs/text-sm do Tailwind. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 1rem;
   }
 }
 

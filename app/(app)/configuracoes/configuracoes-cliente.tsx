@@ -427,14 +427,14 @@ export function ConfiguracoesCliente({
                 return (
                   <div
                     key={p.id}
-                    className="flex items-center gap-3 rounded-md border px-3 py-2"
+                    className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
                   >
                     <div
                       className="size-3 shrink-0 rounded-full"
                       style={{ backgroundColor: p.cor_hex }}
                     />
                     <span className="w-24 flex-shrink-0 text-sm font-medium">{p.nome}</span>
-                    <div className="flex flex-1 gap-2">
+                    <div className="flex flex-1 basis-full gap-2 sm:basis-0">
                       <div className="flex-1">
                         <label className="block text-xs text-muted-foreground mb-1">
                           Salário base (R$)

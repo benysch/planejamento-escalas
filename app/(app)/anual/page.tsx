@@ -164,7 +164,7 @@ export default async function AnualPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
           {Array.from({ length: 12 }, (_, i) => i + 1).map((mes) =>
             miniCalendario(ano, mes, eventos),
           )}

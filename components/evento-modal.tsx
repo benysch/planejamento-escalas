@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { CORES_PARES } from "@/lib/cores";
-import { EMOJIS_EVENTO } from "@/lib/types";
+import { EMOJIS_EVENTO, FAIXAS_HORARIO } from "@/lib/types";
 import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
 const COR_PADRAO = CORES_PARES[0].vivid;
@@ -64,6 +64,7 @@ export function EventoModal({
   const [emojiSel, setEmojiSel] = useState<string | null>(null);
   const [travaAgenda, setTravaAgenda] = useState(false);
   const [recorrenteAnual, setRecorrenteAnual] = useState(false);
+  const [faixaHorario, setFaixaHorario] = useState<string>("nenhuma");
 
   // IDs dos funcionários para detectar quando a cor vem deles
   const funcionarios = pessoas.filter((p) => p.tipo === "funcionario");
@@ -85,6 +86,7 @@ export function EventoModal({
       setEmojiSel(evento.emoji ?? null);
       setTravaAgenda(evento.trava_agenda ?? false);
       setRecorrenteAnual(evento.recorrente_anual ?? false);
+      setFaixaHorario(evento.faixa_horario ?? "nenhuma");
     } else {
       setTitulo("");
       setTipo(defaultTipo);
@@ -96,6 +98,7 @@ export function EventoModal({
       setEmojiSel(null);
       setTravaAgenda(false);
       setRecorrenteAnual(false);
+      setFaixaHorario("nenhuma");
     }
   }, [evento, defaultDate, open]);
 
@@ -110,6 +113,7 @@ export function EventoModal({
     startTransition(async () => {
       try {
         const corFinal = temFuncionario ? null : corEvento;
+        const faixaFinal = faixaHorario === "nenhuma" ? null : faixaHorario;
         if (evento) {
           await updateEvento(evento.id, {
             titulo,
@@ -121,6 +125,7 @@ export function EventoModal({
             emoji: emojiSel,
             trava_agenda: travaAgenda,
             recorrente_anual: recorrenteAnual,
+            faixa_horario: faixaFinal,
             pessoa_ids: pessoasSel,
           });
         } else {
@@ -135,6 +140,7 @@ export function EventoModal({
             emoji: emojiSel,
             trava_agenda: travaAgenda,
             recorrente_anual: recorrenteAnual,
+            faixa_horario: faixaFinal,
             pessoa_ids: pessoasSel,
           });
         }
@@ -227,6 +233,29 @@ export function EventoModal({
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Horário estimado (opcional)</Label>
+            <Select
+              value={faixaHorario}
+              onValueChange={(v) => v && setFaixaHorario(v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nenhuma">Sem horário</SelectItem>
+                {FAIXAS_HORARIO.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Define a ordem das atividades dentro do dia no calendário.
+            </p>
+          </div>
+
           {/* Travar agenda */}
           <button
             type="button"
@@ -316,7 +345,7 @@ export function EventoModal({
                         key={p.id}
                         type="button"
                         onClick={() => togglePessoa(p.id)}
-                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                           pessoasSel.includes(p.id)
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-background hover:bg-muted"
@@ -342,7 +371,7 @@ export function EventoModal({
                         key={p.id}
                         type="button"
                         onClick={() => togglePessoa(p.id)}
-                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                           pessoasSel.includes(p.id)
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-background hover:bg-muted"

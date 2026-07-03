@@ -52,7 +52,7 @@ export function EventosCliente({ eventos, pessoas, tipos }: Props) {
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setFiltroTipo("todos")}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               filtroTipo === "todos"
                 ? "bg-primary text-primary-foreground border-primary"
                 : "border-border bg-background hover:bg-muted"
@@ -66,7 +66,7 @@ export function EventosCliente({ eventos, pessoas, tipos }: Props) {
               <button
                 key={tipo}
                 onClick={() => setFiltroTipo(tipo)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                   filtroTipo === tipo
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-border bg-background hover:bg-muted"

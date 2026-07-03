@@ -13,20 +13,33 @@ function sign(value: string): string {
   return crypto.createHmac("sha256", getSecret()).update(value).digest("hex");
 }
 
-export function createSessionToken(): string {
+export function createSessionToken(email: string): string {
   const expiresAt = String(Date.now() + SESSION_MAX_AGE * 1000);
-  return `${expiresAt}.${sign(expiresAt)}`;
+  const payload = `${expiresAt}.${Buffer.from(email, "utf8").toString("base64url")}`;
+  return `${payload}.${sign(payload)}`;
 }
 
-export function isSessionTokenValid(token: string | undefined): boolean {
-  if (!token) return false;
-  const [expiresAt, signature] = token.split(".");
-  if (!expiresAt || !signature) return false;
-  const expected = sign(expiresAt);
+export function parseSessionToken(
+  token: string | undefined,
+): { email: string } | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [expiresAt, emailEncoded, signature] = parts;
+  const expected = sign(`${expiresAt}.${emailEncoded}`);
   if (
     signature.length !== expected.length ||
     !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
   )
-    return false;
-  return Number(expiresAt) > Date.now();
+    return null;
+  if (Number(expiresAt) <= Date.now()) return null;
+  try {
+    return { email: Buffer.from(emailEncoded, "base64url").toString("utf8") };
+  } catch {
+    return null;
+  }
+}
+
+export function isSessionTokenValid(token: string | undefined): boolean {
+  return parseSessionToken(token) !== null;
 }

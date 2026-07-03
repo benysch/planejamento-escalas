@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { logout } from "@/app/auth-actions";
+import { getAuthClient } from "@/lib/supabase/auth-client";
 import {
   Sidebar,
   SidebarContent,
@@ -40,8 +41,15 @@ const navItems = [
   { title: "Rotinas", url: "/rotinas", icon: ClipboardList },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
+
+  async function sair() {
+    // Encerra também a sessão Google salva no aparelho, senão o próximo
+    // "Entrar com Google" volta sozinho sem passar pela tela do Google.
+    await getAuthClient().auth.signOut();
+    await logout();
+  }
 
   return (
     <Sidebar>
@@ -90,14 +98,17 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <form action={logout} className="w-full">
-              <SidebarMenuButton type="submit" tooltip="Sair">
-                <LogOut />
-                <span>Sair</span>
-              </SidebarMenuButton>
-            </form>
+            <SidebarMenuButton onClick={() => void sair()} tooltip="Sair">
+              <LogOut />
+              <span>Sair</span>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {userEmail ? (
+          <p className="text-muted-foreground truncate px-2 pb-1 text-xs">
+            {userEmail}
+          </p>
+        ) : null}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

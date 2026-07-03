@@ -112,7 +112,7 @@ export function RotinasCliente({ rotinas }: Props) {
                 key={d.value}
                 type="button"
                 onClick={() => setDiaSel(d.value)}
-                className={`flex-1 rounded py-1.5 text-sm font-medium transition-colors ${
+                className={`flex-1 rounded py-2 text-sm font-medium transition-colors ${
                   diaSel === d.value
                     ? "bg-primary text-primary-foreground"
                     : "hover:bg-muted"
@@ -132,17 +132,17 @@ export function RotinasCliente({ rotinas }: Props) {
               {rotinasDia.map((r) => (
                 <li key={r.id} className="flex items-center gap-3 py-2.5">
                   {r.hora ? (
-                    <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground w-24">
+                    <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground w-20 sm:w-24">
                       {r.hora}
                     </span>
                   ) : (
-                    <span className="w-24 shrink-0" />
+                    <span className="w-20 shrink-0 sm:w-24" />
                   )}
                   <span className="flex-1 text-sm">{r.texto}</span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-7 shrink-0"
+                    className="size-8 shrink-0"
                     onClick={() => openEditar(r)}
                   >
                     <Edit2 className="size-3.5" />
