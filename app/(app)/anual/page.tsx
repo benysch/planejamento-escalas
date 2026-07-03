@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import { hojeSaoPaulo } from "@/lib/datas";
 import { getSupabase } from "@/lib/supabase/server";
 import { MESES, getEventoCor } from "@/lib/types";
 import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
@@ -84,7 +88,7 @@ function miniCalendario(ano: number, mes: number, eventos: EventoComPessoas[]) {
     }
   }
 
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = hojeSaoPaulo();
 
   return (
     <div key={mes}>
@@ -139,7 +143,8 @@ export default async function AnualPage({
   searchParams: Promise<{ ano?: string }>;
 }) {
   const sp = await searchParams;
-  const ano = parseInt(sp.ano ?? String(new Date().getFullYear()));
+  const anoAtual = parseInt(hojeSaoPaulo().slice(0, 4), 10);
+  const ano = parseInt(sp.ano ?? String(anoAtual));
   const { eventos, tipos } = await getData(ano);
 
   const viagensFamilia = eventos.filter((e) => e.tipo === "viagem_familia");
@@ -156,11 +161,37 @@ export default async function AnualPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Visão Anual {ano}</h1>
-        <p className="text-muted-foreground text-sm">
-          Panorama do ano — todos os eventos em 12 meses.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Visão Anual {ano}</h1>
+          <p className="text-muted-foreground text-sm">
+            Panorama do ano — todos os eventos em 12 meses.
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/anual?ano=${ano - 1}`}
+            className="hover:bg-muted flex size-9 items-center justify-center rounded-md transition-colors"
+            aria-label={`Ano ${ano - 1}`}
+          >
+            <ChevronLeft className="size-4" />
+          </Link>
+          {ano !== anoAtual && (
+            <Link
+              href="/anual"
+              className="hover:bg-muted rounded-md px-3 py-2 text-sm font-medium transition-colors"
+            >
+              Hoje
+            </Link>
+          )}
+          <Link
+            href={`/anual?ano=${ano + 1}`}
+            className="hover:bg-muted flex size-9 items-center justify-center rounded-md transition-colors"
+            aria-label={`Ano ${ano + 1}`}
+          >
+            <ChevronRight className="size-4" />
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">

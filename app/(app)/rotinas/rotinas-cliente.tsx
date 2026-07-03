@@ -40,11 +40,13 @@ export function RotinasCliente({ rotinas }: Props) {
   const [editando, setEditando] = useState<Rotina | null>(null);
   const [texto, setTexto] = useState("");
   const [hora, setHora] = useState("");
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false);
 
   function openCriar() {
     setEditando(null);
     setTexto("");
     setHora("");
+    setConfirmaExcluir(false);
     setModalOpen(true);
   }
 
@@ -52,6 +54,7 @@ export function RotinasCliente({ rotinas }: Props) {
     setEditando(r);
     setTexto(r.texto);
     setHora(r.hora ?? "");
+    setConfirmaExcluir(false);
     setModalOpen(true);
   }
 
@@ -185,11 +188,15 @@ export function RotinasCliente({ rotinas }: Props) {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => handleDelete(editando.id)}
+                onClick={() =>
+                  confirmaExcluir
+                    ? handleDelete(editando.id)
+                    : setConfirmaExcluir(true)
+                }
                 disabled={pending}
               >
                 <Trash2 className="mr-1 size-3.5" />
-                Remover
+                {confirmaExcluir ? "Confirmar exclusão" : "Remover"}
               </Button>
             )}
             <Button

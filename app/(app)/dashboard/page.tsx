@@ -1,6 +1,7 @@
 import { AlertTriangle, CalendarCheck, Clock, ListChecks, User2, Users } from "lucide-react";
 
 import { getSupabase } from "@/lib/supabase/server";
+import { hojeSaoPaulo, somarDias } from "@/lib/datas";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -19,13 +20,11 @@ const DIAS_SEMANA = [
 
 async function getDashboardData() {
   const sb = getSupabase();
-  const today = new Date().toISOString().split("T")[0];
-  const amanha = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-  const anoAtual = new Date().getFullYear();
-  const em14dias = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+  // Datas no fuso da família — o servidor roda em UTC (vira o dia às 21h BRT).
+  const today = hojeSaoPaulo();
+  const amanha = somarDias(today, 1);
+  const anoAtual = parseInt(today.slice(0, 4), 10);
+  const em14dias = somarDias(today, 14);
 
   const [
     { data: pessoas },

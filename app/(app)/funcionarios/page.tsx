@@ -1,3 +1,4 @@
+import { hojeSaoPaulo } from "@/lib/datas";
 import { getSupabase } from "@/lib/supabase/server";
 import { MESES } from "@/lib/types";
 import type { EscalaMensal, Pessoa } from "@/lib/types";
@@ -45,9 +46,9 @@ export default async function FuncionariosPage({
   searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
   const sp = await searchParams;
-  const hoje = new Date();
-  const ano = parseInt(sp.ano ?? String(hoje.getFullYear()));
-  const mes = parseInt(sp.mes ?? String(hoje.getMonth() + 1));
+  const hoje = hojeSaoPaulo();
+  const ano = parseInt(sp.ano ?? hoje.slice(0, 4));
+  const mes = parseInt(sp.mes ?? hoje.slice(5, 7));
 
   const { funcionarios, diasPorFuncionario, escalaMensalPorFuncionario } =
     await getData(ano, mes);

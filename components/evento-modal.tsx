@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { CORES_PARES } from "@/lib/cores";
+import { hojeLocal } from "@/lib/datas";
 import { EMOJIS_EVENTO, FAIXAS_HORARIO } from "@/lib/types";
 import type { EventoComPessoas, Pessoa, TipoEvento } from "@/lib/types";
 
@@ -52,12 +53,9 @@ export function EventoModal({
   const [pending, startTransition] = useTransition();
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState<string>(defaultTipo);
-  const [dataInicio, setDataInicio] = useState(
-    defaultDate ?? new Date().toISOString().split("T")[0],
-  );
-  const [dataFim, setDataFim] = useState(
-    defaultDate ?? new Date().toISOString().split("T")[0],
-  );
+  const [dataInicio, setDataInicio] = useState(defaultDate ?? hojeLocal());
+  const [dataFim, setDataFim] = useState(defaultDate ?? hojeLocal());
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false);
   const [notas, setNotas] = useState("");
   const [pessoasSel, setPessoasSel] = useState<string[]>([]);
   const [corEvento, setCorEvento] = useState<string>(COR_PADRAO);
@@ -75,6 +73,7 @@ export function EventoModal({
   const temFuncionario = funcionariosSel.length > 0;
 
   useEffect(() => {
+    setConfirmaExcluir(false);
     if (evento) {
       setTitulo(evento.titulo);
       setTipo(evento.tipo);
@@ -90,8 +89,8 @@ export function EventoModal({
     } else {
       setTitulo("");
       setTipo(defaultTipo);
-      setDataInicio(defaultDate ?? new Date().toISOString().split("T")[0]);
-      setDataFim(defaultDate ?? new Date().toISOString().split("T")[0]);
+      setDataInicio(defaultDate ?? hojeLocal());
+      setDataFim(defaultDate ?? hojeLocal());
       setNotas("");
       setPessoasSel([]);
       setCorEvento(tipos[0]?.cor_hex ?? COR_PADRAO);
@@ -463,10 +462,12 @@ export function EventoModal({
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDelete}
+              onClick={() =>
+                confirmaExcluir ? handleDelete() : setConfirmaExcluir(true)
+              }
               disabled={pending}
             >
-              Excluir
+              {confirmaExcluir ? "Confirmar exclusão" : "Excluir"}
             </Button>
           )}
           <Button variant="outline" onClick={onClose} disabled={pending}>

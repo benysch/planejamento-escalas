@@ -29,6 +29,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const navItems = [
@@ -43,6 +44,10 @@ const navItems = [
 
 export function AppSidebar({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+
+  // No celular o menu é uma gaveta — fecha ao escolher uma página.
+  const fecharMenu = () => setOpenMobile(false);
 
   async function sair() {
     // Encerra também a sessão Google salva no aparelho, senão o próximo
@@ -72,7 +77,7 @@ export function AppSidebar({ userEmail }: { userEmail: string | null }) {
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
-                    render={<Link href={item.url} />}
+                    render={<Link href={item.url} onClick={fecharMenu} />}
                     isActive={pathname.startsWith(item.url)}
                     tooltip={item.title}
                   >
@@ -89,7 +94,7 @@ export function AppSidebar({ userEmail }: { userEmail: string | null }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={<Link href="/configuracoes" />}
+              render={<Link href="/configuracoes" onClick={fecharMenu} />}
               isActive={pathname.startsWith("/configuracoes")}
               tooltip="Configurações"
             >

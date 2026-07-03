@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isCorPastel } from "@/lib/cores";
+import { hojeLocal } from "@/lib/datas";
 import { FAIXA_HORARIO_ORDEM, getEventoCor, MESES } from "@/lib/types";
 import type { EventoComPessoas, TipoEvento } from "@/lib/types";
 
@@ -77,7 +78,7 @@ export function CalendarioMensal({
     return map;
   }, [eventos]);
 
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = hojeLocal();
 
   // Ordena pela faixa de horário; sem horário vai para o fim.
   // Desempate: ordem da categoria.

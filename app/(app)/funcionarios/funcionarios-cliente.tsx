@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { isCorPastel } from "@/lib/cores";
+import { hojeLocal } from "@/lib/datas";
 import { CARGO_LABEL, MESES } from "@/lib/types";
 import type { EscalaDia, EscalaMensal, Pessoa } from "@/lib/types";
 
@@ -70,7 +71,7 @@ function EscalaCard({
   for (let d = 1; d <= totalDias; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = hojeLocal();
   const mesStr = `${ano}-${String(mes).padStart(2, "0")}`;
 
   function handleToggle(dia: number) {

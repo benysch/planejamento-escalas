@@ -136,6 +136,8 @@ export function ConfiguracoesCliente({
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Pessoa | null>(null);
   const [form, setForm] = useState<Form>(defaultForm());
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false);
+  const [confirmaExcluirTipo, setConfirmaExcluirTipo] = useState(false);
 
   // Tipos de evento
   const [tipos, setTipos] = useState<TipoEvento[]>(tiposInicial);
@@ -187,12 +189,14 @@ export function ConfiguracoesCliente({
   function openCriarTipo() {
     setTipoEditando(null);
     setTipoForm(defaultTipoForm());
+    setConfirmaExcluirTipo(false);
     setTipoModalOpen(true);
   }
 
   function openEditarTipo(t: TipoEvento) {
     setTipoEditando(t);
     setTipoForm({ label: t.label, cor_hex: t.cor_hex });
+    setConfirmaExcluirTipo(false);
     setTipoModalOpen(true);
   }
 
@@ -226,9 +230,14 @@ export function ConfiguracoesCliente({
     });
   }
 
-  function openCriar() {
+  function openCriar(tipoInicial: PessoaTipo = "familiar") {
     setEditando(null);
-    setForm(defaultForm());
+    setForm({
+      ...defaultForm(),
+      tipo: tipoInicial,
+      cargo: tipoInicial === "familiar" ? "adulto" : "baba",
+    });
+    setConfirmaExcluir(false);
     setModalOpen(true);
   }
 
@@ -240,6 +249,7 @@ export function ConfiguracoesCliente({
       cargo: (p.cargo as PessoaCargo) ?? "adulto",
       cor_hex: p.cor_hex,
     });
+    setConfirmaExcluir(false);
     setModalOpen(true);
   }
 
@@ -278,8 +288,13 @@ export function ConfiguracoesCliente({
 
   function handleToggleAtivo(p: Pessoa) {
     startTransition(async () => {
-      await updatePessoa(p.id, { ativo: !p.ativo });
-      toast.success(p.ativo ? "Marcado como inativo." : "Reativado.");
+      try {
+        await updatePessoa(p.id, { ativo: !p.ativo });
+        toast.success(p.ativo ? "Marcado como inativo." : "Reativado.");
+        setModalOpen(false);
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Erro ao atualizar.");
+      }
     });
   }
 
@@ -313,7 +328,7 @@ export function ConfiguracoesCliente({
         <Card>
           <CardHeader className="flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">Família</CardTitle>
-            <Button size="sm" variant="outline" onClick={openCriar}>
+            <Button size="sm" variant="outline" onClick={() => openCriar("familiar")}>
               <Plus className="mr-1 size-3.5" />
               Adicionar
             </Button>
@@ -361,7 +376,7 @@ export function ConfiguracoesCliente({
         <Card>
           <CardHeader className="flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">Funcionários</CardTitle>
-            <Button size="sm" variant="outline" onClick={openCriar}>
+            <Button size="sm" variant="outline" onClick={() => openCriar("funcionario")}>
               <Plus className="mr-1 size-3.5" />
               Adicionar
             </Button>
@@ -561,11 +576,15 @@ export function ConfiguracoesCliente({
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => handleDeleteTipo(tipoEditando.id)}
+                onClick={() =>
+                  confirmaExcluirTipo
+                    ? handleDeleteTipo(tipoEditando.id)
+                    : setConfirmaExcluirTipo(true)
+                }
                 disabled={pending}
               >
                 <Trash2 className="mr-1 size-3.5" />
-                Remover
+                {confirmaExcluirTipo ? "Confirmar exclusão" : "Remover"}
               </Button>
             )}
             <Button
@@ -657,15 +676,29 @@ export function ConfiguracoesCliente({
 
           <DialogFooter className="gap-2">
             {editando && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDelete(editando.id)}
-                disabled={pending}
-              >
-                <Trash2 className="mr-1 size-3.5" />
-                Remover
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleToggleAtivo(editando)}
+                  disabled={pending}
+                >
+                  {editando.ativo ? "Inativar" : "Reativar"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() =>
+                    confirmaExcluir
+                      ? handleDelete(editando.id)
+                      : setConfirmaExcluir(true)
+                  }
+                  disabled={pending}
+                >
+                  <Trash2 className="mr-1 size-3.5" />
+                  {confirmaExcluir ? "Confirmar exclusão" : "Remover"}
+                </Button>
+              </>
             )}
             <Button
               variant="outline"

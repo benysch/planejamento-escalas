@@ -7,11 +7,19 @@ import { toast } from "sonner";
 
 import {
   marcarBlocoFuncionariaPago,
+  marcarPago,
   upsertPagamentoAvulso,
   deletePagamento,
 } from "@/app/(app)/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,10 +29,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { hojeLocal } from "@/lib/datas";
 import { MESES } from "@/lib/types";
 import type { EscalaDia, EscalaMensal, Pagamento, Pessoa, ConfigFinanceira } from "@/lib/types";
 
-const TIPOS_AVULSO = ["e-social", "adiantamento", "encargos", "outro"];
+const TIPOS_AVULSO = ["e-social", "adiantamento", "encargos", "extra", "outro"];
+
+const TIPO_AVULSO_LABEL: Record<string, string> = {
+  "e-social": "E-Social",
+  adiantamento: "Adiantamento",
+  encargos: "Encargos",
+  extra: "Extra",
+  outro: "Outro",
+  salario: "Salário",
+  vt: "VT",
+  folguista: "Folguista",
+};
+
+function tipoAvulsoLabel(tipo: string): string {
+  return TIPO_AVULSO_LABEL[tipo] ?? tipo;
+}
 
 type Props = {
   mes: number;
@@ -121,21 +145,37 @@ function calcularParcelas(bloco: BlocoFuncionaria): {
   return { salarioProporcional, folguistas, vt, total };
 }
 
+function brl(valor: number): string {
+  return valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+}
+
+type AvulsoForm = {
+  id?: string;
+  despesa: string;
+  tipo_pagamento: string;
+  valor: string;
+  observacao: string;
+};
+
+function defaultAvulsoForm(): AvulsoForm {
+  return { despesa: "", tipo_pagamento: "e-social", valor: "", observacao: "" };
+}
+
 export function PagamentosCliente({
-  mes: mesProp,
-  ano: anoProp,
+  mes,
+  ano,
   pessoas,
   escalaDias,
   escalaMensais,
   configFinanceira,
-  pagamentos: pagamentosInicial,
+  pagamentos,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [pagamentos, setPagamentos] = useState(pagamentosInicial);
 
-  const mes = mesProp;
-  const ano = anoProp;
+  const [avulsoOpen, setAvulsoOpen] = useState(false);
+  const [avulsoForm, setAvulsoForm] = useState<AvulsoForm>(defaultAvulsoForm());
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false);
 
   const blocos = calcularBlocos(
     pessoas,
@@ -159,7 +199,7 @@ export function PagamentosCliente({
   }
 
   function handleTogglePago(bloco: BlocoFuncionaria) {
-    const dataPagamento = !bloco.pago ? new Date().toISOString().split("T")[0] : null;
+    const dataPagamento = !bloco.pago ? hojeLocal() : null;
     startTransition(async () => {
       try {
         await marcarBlocoFuncionariaPago(
@@ -181,6 +221,80 @@ export function PagamentosCliente({
     });
   }
 
+  // Despesas avulsas: importadas do Excel e lançadas à mão (sem funcionário).
+  // Linhas "resumo" são o marcador interno de pago dos blocos — ficam de fora.
+  const pagamentosAvulsos = pagamentos.filter(
+    (p) => !p.funcionario_id && p.tipo_pagamento !== "resumo",
+  );
+
+  function openNovoAvulso() {
+    setAvulsoForm(defaultAvulsoForm());
+    setConfirmaExcluir(false);
+    setAvulsoOpen(true);
+  }
+
+  function openEditarAvulso(p: Pagamento) {
+    setAvulsoForm({
+      id: p.id,
+      despesa: p.despesa,
+      tipo_pagamento: p.tipo_pagamento,
+      valor: String(p.valor),
+      observacao: p.observacao ?? "",
+    });
+    setConfirmaExcluir(false);
+    setAvulsoOpen(true);
+  }
+
+  const valorAvulso = parseFloat(avulsoForm.valor.replace(",", "."));
+  const avulsoValido = avulsoForm.despesa.trim() !== "" && !isNaN(valorAvulso);
+
+  function handleSaveAvulso() {
+    if (!avulsoValido) return;
+    startTransition(async () => {
+      try {
+        await upsertPagamentoAvulso({
+          id: avulsoForm.id,
+          mes,
+          ano,
+          despesa: avulsoForm.despesa.trim(),
+          tipo_pagamento: avulsoForm.tipo_pagamento,
+          valor: Math.round(valorAvulso * 100) / 100,
+          observacao: avulsoForm.observacao.trim() || null,
+        });
+        toast.success(avulsoForm.id ? "Despesa atualizada." : "Despesa adicionada.");
+        setAvulsoOpen(false);
+        router.refresh();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Erro ao salvar.");
+      }
+    });
+  }
+
+  function handleDeleteAvulso() {
+    if (!avulsoForm.id) return;
+    startTransition(async () => {
+      try {
+        await deletePagamento(avulsoForm.id!);
+        toast.success("Despesa removida.");
+        setAvulsoOpen(false);
+        router.refresh();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Erro ao remover.");
+      }
+    });
+  }
+
+  function handleToggleAvulsoPago(p: Pagamento) {
+    startTransition(async () => {
+      try {
+        await marcarPago(p.id, !p.pago, !p.pago ? hojeLocal() : null);
+        router.refresh();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Erro ao atualizar.");
+      }
+    });
+  }
+
   const totaisGerais = blocos.reduce(
     (acc, bloco) => {
       const parcelas = calcularParcelas(bloco);
@@ -192,9 +306,24 @@ export function PagamentosCliente({
     },
     { total: 0, pago: 0, pendente: 0 },
   );
+  for (const p of pagamentosAvulsos) {
+    totaisGerais.total += p.valor;
+    if (p.pago) totaisGerais.pago += p.valor;
+    else totaisGerais.pendente += p.valor;
+  }
 
-  // Linhas avulsas (não relacionadas a funcionários)
-  const pagamentosAvulsos = pagamentos.filter((p) => !p.funcionario_id || p.tipo_pagamento === "resumo");
+  const blocosVisiveis = blocos.filter(
+    (b) =>
+      b.dias_normais > 0 ||
+      b.dias_folguista > 0 ||
+      b.saldo_vt > 0 ||
+      b.dias_especiais.length > 0 ||
+      b.pago,
+  );
+
+  const tiposDoSelect = TIPOS_AVULSO.includes(avulsoForm.tipo_pagamento)
+    ? TIPOS_AVULSO
+    : [avulsoForm.tipo_pagamento, ...TIPOS_AVULSO];
 
   return (
     <div className="space-y-6">
@@ -214,11 +343,15 @@ export function PagamentosCliente({
       </div>
 
       {/* Funcionárias Cards */}
-      {blocos.map((bloco) => {
+      {blocosVisiveis.length === 0 && (
+        <p className="text-muted-foreground py-4 text-center text-sm">
+          Nenhum dia programado para os funcionários neste mês — marque a
+          escala em Funcionários.
+        </p>
+      )}
+      {blocosVisiveis.map((bloco) => {
         const parcelas = calcularParcelas(bloco);
         const temDados = bloco.dias_normais > 0 || bloco.dias_folguista > 0 || bloco.saldo_vt > 0 || bloco.dias_especiais.length > 0;
-
-        if (!temDados && !bloco.pago) return null;
 
         return (
           <Card key={bloco.funcionario_id}>
@@ -231,7 +364,7 @@ export function PagamentosCliente({
                 <CardTitle className="flex-1">{bloco.nome}</CardTitle>
                 <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
                   <span className="text-lg font-semibold">
-                    R$ {parcelas.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {brl(parcelas.total)}
                   </span>
                   <label className="flex min-h-11 cursor-pointer select-none items-center gap-2 sm:ml-4 sm:min-h-0">
                     <input
@@ -257,7 +390,7 @@ export function PagamentosCliente({
                       ● {bloco.dias_normais} dias normais → Salário proporcional
                     </span>
                     <span className="font-medium">
-                      R$ {parcelas.salarioProporcional.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      R$ {brl(parcelas.salarioProporcional)}
                     </span>
                   </div>
                 )}
@@ -265,10 +398,10 @@ export function PagamentosCliente({
                 {bloco.dias_folguista > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ⬤ {bloco.dias_folguista} dias folguista × R$ {bloco.valor_folguista_dia.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      ⬤ {bloco.dias_folguista} dias folguista × R$ {brl(bloco.valor_folguista_dia)}
                     </span>
                     <span className="font-medium">
-                      R$ {parcelas.folguistas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      R$ {brl(parcelas.folguistas)}
                     </span>
                   </div>
                 )}
@@ -276,10 +409,10 @@ export function PagamentosCliente({
                 {bloco.saldo_vt > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      VT: {bloco.saldo_vt} dias × R$ {bloco.valor_vt_dia.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      VT: {bloco.saldo_vt} dias × R$ {brl(bloco.valor_vt_dia)}
                     </span>
                     <span className="font-medium">
-                      R$ {parcelas.vt.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      R$ {brl(parcelas.vt)}
                     </span>
                   </div>
                 )}
@@ -287,9 +420,11 @@ export function PagamentosCliente({
                 {bloco.dias_especiais.map((dia) => (
                   <div key={dia.id} className="flex justify-between text-sm border-t pt-2">
                     <span className="text-muted-foreground">
-                      ★ Especial {dia.data} {dia.obs ? `(${dia.obs})` : ""}
+                      ★ Especial {dia.data.split("-").reverse().join("/")} {dia.obs ? `(${dia.obs})` : ""}
                     </span>
-                    <span className="font-medium text-orange-600">[editar]</span>
+                    <span className="text-muted-foreground text-xs">
+                      combinar à parte
+                    </span>
                   </div>
                 ))}
               </CardContent>
@@ -303,7 +438,7 @@ export function PagamentosCliente({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">E-Social & Outras Despesas</CardTitle>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={openNovoAvulso}>
               <Plus className="mr-1 size-3.5" />
               Adicionar
             </Button>
@@ -315,26 +450,36 @@ export function PagamentosCliente({
               Nenhuma despesa avulsa registrada.
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y">
               {pagamentosAvulsos.map((p) => (
-                <div key={p.id} className="flex items-center justify-between text-sm border-b pb-2">
-                  <div className="flex-1">
-                    <p className="font-medium">{p.despesa}</p>
-                    {p.observacao && <p className="text-xs text-muted-foreground">{p.observacao}</p>}
-                  </div>
-                  <span className="font-medium min-w-fit ml-4">
-                    R$ {p.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 ml-2"
-                    onClick={() => {
-                      // Delete action
-                    }}
+                <div key={p.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <label className="flex shrink-0 cursor-pointer items-center">
+                    <input
+                      type="checkbox"
+                      checked={p.pago}
+                      onChange={() => handleToggleAvulsoPago(p)}
+                      disabled={pending}
+                      className="size-4 cursor-pointer"
+                      title={p.pago ? "Pago" : "Pendente"}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                    onClick={() => openEditarAvulso(p)}
                   >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                    <p className="truncate font-medium">{p.despesa}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {tipoAvulsoLabel(p.tipo_pagamento)}
+                      {p.observacao ? ` · ${p.observacao}` : ""}
+                      {p.pago && p.data_pagamento
+                        ? ` · pago em ${p.data_pagamento.split("-").reverse().join("/")}`
+                        : ""}
+                    </p>
+                  </button>
+                  <span className={`min-w-fit font-medium ${p.pago ? "text-muted-foreground" : ""}`}>
+                    R$ {brl(p.valor)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -349,24 +494,112 @@ export function PagamentosCliente({
             <div>
               Total Geral
               <p className="text-2xl">
-                R$ {totaisGerais.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R$ {brl(totaisGerais.total)}
               </p>
             </div>
             <div className="text-green-600">
               Pago
               <p className="text-2xl">
-                R$ {totaisGerais.pago.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R$ {brl(totaisGerais.pago)}
               </p>
             </div>
             <div className="text-orange-600">
               Pendente
               <p className="text-2xl">
-                R$ {totaisGerais.pendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R$ {brl(totaisGerais.pendente)}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal despesa avulsa */}
+      <Dialog open={avulsoOpen} onOpenChange={(v) => !v && setAvulsoOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {avulsoForm.id ? "Editar despesa" : "Nova despesa"} — {MESES[mes - 1]} {ano}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="despesa">Despesa</Label>
+              <Input
+                id="despesa"
+                value={avulsoForm.despesa}
+                onChange={(e) => setAvulsoForm({ ...avulsoForm, despesa: e.target.value })}
+                placeholder="Ex: DAE e-Social junho"
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Tipo</Label>
+                <Select
+                  value={avulsoForm.tipo_pagamento}
+                  onValueChange={(v) => v && setAvulsoForm({ ...avulsoForm, tipo_pagamento: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposDoSelect.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {tipoAvulsoLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="valor">Valor (R$)</Label>
+                <Input
+                  id="valor"
+                  type="text"
+                  inputMode="decimal"
+                  value={avulsoForm.valor}
+                  onChange={(e) => setAvulsoForm({ ...avulsoForm, valor: e.target.value })}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="observacao">Observação (opcional)</Label>
+              <Input
+                id="observacao"
+                value={avulsoForm.observacao}
+                onChange={(e) => setAvulsoForm({ ...avulsoForm, observacao: e.target.value })}
+                placeholder="Detalhes…"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            {avulsoForm.id && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                  confirmaExcluir ? handleDeleteAvulso() : setConfirmaExcluir(true)
+                }
+                disabled={pending}
+              >
+                <Trash2 className="mr-1 size-3.5" />
+                {confirmaExcluir ? "Confirmar exclusão" : "Excluir"}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setAvulsoOpen(false)} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveAvulso} disabled={pending || !avulsoValido}>
+              {pending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

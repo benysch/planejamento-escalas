@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { hojeSaoPaulo } from "@/lib/datas";
 import { getSupabase } from "@/lib/supabase/server";
 import type { EscalaDia, EscalaMensal, Pagamento, Pessoa, ConfigFinanceira } from "@/lib/types";
 import { PagamentosCliente } from "./pagamentos-cliente";
@@ -49,9 +50,9 @@ export default async function PagamentosPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  const today = new Date();
-  const defaultMes = today.getMonth() + 1;
-  const defaultAno = today.getFullYear();
+  const today = hojeSaoPaulo();
+  const defaultMes = parseInt(today.slice(5, 7), 10);
+  const defaultAno = parseInt(today.slice(0, 4), 10);
 
   const params = await searchParams;
   const mes = parseInt(params.mes ?? String(defaultMes));
