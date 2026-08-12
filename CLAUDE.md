@@ -19,7 +19,7 @@ No ar em **https://planejamento-escalas.vercel.app** (login Google — mesma lis
 - `app/(auth)/login` — tela de login ("Entrar com Google")
 - `proxy.ts` — middleware de autenticação (cookie de sessão assinado, 30 dias)
 - `lib/auth.ts` — criação/validação de tokens de sessão (carregam o e-mail)
-- `lib/supabase/auth-client.ts` — cliente Supabase SÓ do login Google (projeto **viagens** `wegmdgpgelclpjbqqhvm`, trigger `check_allowed_email` limita a convidados); `app/auth-actions.ts` valida o access token no servidor e emite o cookie
+- `lib/supabase/auth-client.ts` — cliente Supabase SÓ do login Google (projeto compartilhado **benysch** `phvcaevhelvvrzclrapt` — mesmo dos dados; trigger `fc_check_allowed_email` vs `fc_allowed_emails` limita a convidados); `app/auth-actions.ts` valida o access token no servidor e emite o cookie. ⚠️ NÃO usar o antigo `wegmdgpgelclpjbqqhvm` (projeto standalone do viagens, DELETADO na migração de jul/2026 — apontar pra ele quebra o login)
 - `lib/supabase/server.ts` — cliente Supabase server-side
 - `lib/types.ts` — tipos TypeScript + constantes de label/cor por tipo de evento
 - `app/(app)/actions.ts` — server actions (CRUD de eventos, pessoas, escala)
